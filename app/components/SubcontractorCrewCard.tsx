@@ -8,8 +8,8 @@ type Props = {
   onAddWork: (crewId: string) => void;
   onEditWork: (crewId: string, item: CrewWorkItem) => void;
   onDeleteWork: (crewId: string, workId: string) => void;
-  /** Opens the same Subcontractor Compensation Agreement preview as Documents */
-  onOpenCompensationPreview?: () => void;
+  /** Opens this crew’s Subcontractor Compensation Agreement PDF preview */
+  onOpenCompensationPreview?: (crewId: string) => void;
 };
 
 /** Work lines that would appear in the compensation agreement PDF */
@@ -57,9 +57,9 @@ export default function SubcontractorCrewCard({
             <button
               type="button"
               className="scr-d2-crew-pdf-icon d-inline-flex align-items-center justify-content-center flex-shrink-0 rounded-2 border"
-              title="Preview Subcontractor Compensation Agreement (same as Documents)"
-              aria-label="Preview Subcontractor Compensation Agreement PDF"
-              onClick={() => onOpenCompensationPreview()}
+              title="Preview this subcontractor’s Compensation Agreement PDF"
+              aria-label="Preview Subcontractor Compensation Agreement PDF for this crew"
+              onClick={() => onOpenCompensationPreview(crew.id)}
             >
               <i className="bi bi-file-earmark-pdf" aria-hidden />
             </button>

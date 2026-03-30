@@ -223,7 +223,7 @@ type CrewsProps = {
   openAddWorkModal: (crewId: string) => void;
   openEditWorkModal: (crewId: string, item: CrewWorkItem) => void;
   onDeleteWork: (crewId: string, workId: string) => void;
-  onOpenCompensationPreview?: () => void;
+  onOpenCompensationPreview?: (crewId: string) => void;
   layout: "d1" | "d2" | "d3";
 };
 
@@ -491,7 +491,7 @@ export default function SubcontractorReport() {
   const [addWorkModalKey, setAddWorkModalKey] = useState(0);
   const [paidOrSubmit, setPaidOrSubmit] = useState<"paid" | "submit">("submit");
   const actionGroupId = useId();
-  const compensationPreviewOpenRef = useRef<(() => void) | null>(null);
+  const compensationPreviewOpenRef = useRef<((crewId: string) => void) | null>(null);
 
   const workTotal = crews.reduce(
     (sum, crew) => sum + crew.workItems.reduce((s, w) => s + (Number(w.installCost) || 0), 0),
@@ -571,7 +571,7 @@ export default function SubcontractorReport() {
     openAddWorkModal,
     openEditWorkModal,
     onDeleteWork: handleDeleteWorkItem,
-    onOpenCompensationPreview: () => compensationPreviewOpenRef.current?.(),
+    onOpenCompensationPreview: (crewId: string) => compensationPreviewOpenRef.current?.(crewId),
   };
 
   return (

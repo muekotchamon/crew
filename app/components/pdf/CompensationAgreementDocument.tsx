@@ -250,6 +250,8 @@ export function CompensationAgreementDocument({
             <Text style={s.metaLine}>Job #{jobNumber}</Text>
             <Text style={s.metaLine}>{accountName}</Text>
             <Text style={s.metaLine}>{accountAddress}</Text>
+            <Text style={[s.metaLabel, { marginTop: 5 }]}>Subcontractor</Text>
+            <Text style={s.metaLine}>{payeeCompanyName}</Text>
           </View>
 
           <View style={local.docTitleWrap}>

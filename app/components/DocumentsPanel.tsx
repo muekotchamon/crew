@@ -8,7 +8,7 @@ import {
   useState,
   type MutableRefObject,
 } from "react";
-import { buildCompensationRows } from "../lib/buildCompensationRows";
+import { buildCompensationRowsForCrew } from "../lib/buildCompensationRows";
 import { scrDesignClass, useDesignVariant } from "./DesignThemeContext";
 import { DEFAULT_JOB_META } from "../lib/defaultJobMeta";
 import type { CrewEntry } from "./crewTypes";
@@ -19,8 +19,8 @@ import { WaiverLienDocument } from "./pdf/WaiverLienDocument";
 type Props = {
   crews: CrewEntry[];
   workTotal: number;
-  /** Wired from parent so crew cards can open the same compensation PDF preview */
-  compensationPreviewOpenRef?: MutableRefObject<(() => void) | null>;
+  /** Wired from parent so crew cards open that crew’s compensation PDF preview */
+  compensationPreviewOpenRef?: MutableRefObject<((crewId: string) => void) | null>;
 };
 
 type PreviewState = {
@@ -30,11 +30,18 @@ type PreviewState = {
   title: string;
   docKind: "compensation" | "waiver";
   signatureDataUrl?: string;
+  /** Set when docKind is compensation — needed to regenerate PDF after signing */
+  compensationCrewId?: string;
 };
 
 function logoAbsoluteSrc(): string {
   if (typeof window === "undefined") return "";
   return `${window.location.origin}/logo.png`;
+}
+
+function compensationAgreementFilename(crew: CrewEntry): string {
+  const slug = (crew.code || crew.id).replace(/[^\w.-]+/g, "-");
+  return `Subcontractor-Compensation-Agreement-${slug}.pdf`;
 }
 
 function triggerDownload(blob: Blob, filename: string) {
@@ -56,8 +63,6 @@ export default function DocumentsPanel({
 }: Props) {
   const design = useDesignVariant();
   const dClass = scrDesignClass(design);
-  const rows = buildCompensationRows(crews);
-  const hasCompensationData = rows.length > 0;
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [generating, setGenerating] = useState(false);
   const [signModalOpen, setSignModalOpen] = useState(false);
@@ -65,18 +70,30 @@ export default function DocumentsPanel({
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const makePreviewBlob = useCallback(
-    async (docKind: "compensation" | "waiver", signatureDataUrl?: string) => {
+    async (
+      docKind: "compensation" | "waiver",
+      options?: { signatureDataUrl?: string; compensationCrewId?: string }
+    ) => {
       const logoSrc = logoAbsoluteSrc();
+      const signatureDataUrl = options?.signatureDataUrl;
       if (docKind === "compensation") {
+        const crewId = options?.compensationCrewId;
+        if (!crewId) throw new Error("compensationCrewId is required for compensation PDF");
+        const crew = crews.find((c) => c.id === crewId);
+        if (!crew) throw new Error("Crew not found for compensation PDF");
+        const agreementRows = buildCompensationRowsForCrew(crew);
+        const crewInstallTotal = agreementRows.reduce((s, r) => s + r.installationCost, 0);
+        const payeeName =
+          crew.employeeName?.trim() || DEFAULT_JOB_META.subcontractorCompany;
         return pdf(
           <CompensationAgreementDocument
             logoSrc={logoSrc}
             jobNumber={DEFAULT_JOB_META.jobNumber}
             accountName={DEFAULT_JOB_META.accountName}
             accountAddress={DEFAULT_JOB_META.accountAddress}
-            rows={rows}
-            totalInstallationCost={workTotal}
-            payeeCompanyName={DEFAULT_JOB_META.subcontractorCompany}
+            rows={agreementRows}
+            totalInstallationCost={crewInstallTotal}
+            payeeCompanyName={payeeName}
             signatureDataUrl={signatureDataUrl}
           />
         ).toBlob();
@@ -94,7 +111,7 @@ export default function DocumentsPanel({
         />
       ).toBlob();
     },
-    [rows, workTotal]
+    [crews, workTotal]
   );
 
   useEffect(() => {
@@ -120,7 +137,11 @@ export default function DocumentsPanel({
     const previousUrl = current.url;
     setApplyingSignature(true);
     try {
-      const blob = await makePreviewBlob(current.docKind, dataUrl);
+      const blob = await makePreviewBlob(current.docKind, {
+        signatureDataUrl: dataUrl,
+        compensationCrewId:
+          current.docKind === "compensation" ? current.compensationCrewId : undefined,
+      });
       const url = URL.createObjectURL(blob);
       setPreview({
         ...current,
@@ -139,28 +160,37 @@ export default function DocumentsPanel({
     }
   }
 
-  const openCompensationPreview = useCallback(async () => {
-    if (!hasCompensationData || generating) return;
-    setGenerating(true);
-    try {
-      const blob = await makePreviewBlob("compensation");
-      const url = URL.createObjectURL(blob);
-      setPreview({
-        url,
-        blob,
-        filename: "Subcontractor-Compensation-Agreement.pdf",
-        title: "Subcontractor Compensation Agreement",
-        docKind: "compensation",
-      });
-    } finally {
-      setGenerating(false);
-    }
-  }, [hasCompensationData, generating, makePreviewBlob]);
+  const openCompensationPreview = useCallback(
+    async (crewId: string) => {
+      if (generating) return;
+      const crew = crews.find((c) => c.id === crewId);
+      if (!crew) return;
+      const agreementRows = buildCompensationRowsForCrew(crew);
+      if (agreementRows.length === 0) return;
+      setGenerating(true);
+      try {
+        const blob = await makePreviewBlob("compensation", { compensationCrewId: crewId });
+        const url = URL.createObjectURL(blob);
+        const displayLabel = crew.employeeName?.trim() || crew.code;
+        setPreview({
+          url,
+          blob,
+          filename: compensationAgreementFilename(crew),
+          title: `Subcontractor Compensation Agreement — ${displayLabel}`,
+          docKind: "compensation",
+          compensationCrewId: crewId,
+        });
+      } finally {
+        setGenerating(false);
+      }
+    },
+    [crews, generating, makePreviewBlob]
+  );
 
   useEffect(() => {
     if (!compensationPreviewOpenRef) return;
-    compensationPreviewOpenRef.current = () => {
-      void openCompensationPreview();
+    compensationPreviewOpenRef.current = (crewId: string) => {
+      void openCompensationPreview(crewId);
     };
     return () => {
       compensationPreviewOpenRef.current = null;
@@ -171,7 +201,7 @@ export default function DocumentsPanel({
     if (generating) return;
     setGenerating(true);
     try {
-      const blob = await makePreviewBlob("waiver");
+      const blob = await makePreviewBlob("waiver", {});
       const url = URL.createObjectURL(blob);
       setPreview({
         url,
