@@ -17,6 +17,12 @@ export type CrewEntry = {
 
 export type CrewEntryPayload = Omit<CrewEntry, "code" | "workItems">;
 
+/** Independent checkboxes on each crew card (both may be checked) */
+export type CrewPaymentFlags = {
+  submit: boolean;
+  paid: boolean;
+};
+
 /** Per-crew stored signature images (data URLs) after Sign online on each PDF */
 export type CrewPdfSignatures = Record<
   string,

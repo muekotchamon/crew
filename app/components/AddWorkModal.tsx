@@ -143,7 +143,7 @@ export default function AddWorkModal({
                 <div className="row g-3">
                   <div className="col-md-4">
                     <label className="form-label small fw-semibold mb-2" htmlFor="add-work-install-qty" style={{ color: "var(--scr-slate-800)" }}>
-                      Install/QTY
+                      Cost
                     </label>
                     <input
                       id="add-work-install-qty"

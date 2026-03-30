@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 import AddCrewModal from "./AddCrewModal";
 import AddWorkModal from "./AddWorkModal";
 import {
@@ -13,6 +13,7 @@ import SubcontractorCrewCard from "./SubcontractorCrewCard";
 import type {
   CrewEntry,
   CrewEntryPayload,
+  CrewPaymentFlags,
   CrewPdfSignatures,
   CrewWorkItem,
 } from "./crewTypes";
@@ -231,8 +232,8 @@ type CrewsProps = {
   onOpenCompensationPreview?: (crewId: string) => void;
   onOpenWaiverPreview?: (crewId: string) => void;
   crewPdfSignatures: CrewPdfSignatures;
-  crewPaidOrSubmit: Record<string, "paid" | "submit">;
-  setPaidOrSubmitForCrew: (crewId: string, value: "paid" | "submit") => void;
+  crewPaymentFlags: Record<string, CrewPaymentFlags>;
+  setCrewPaymentFlag: (crewId: string, key: keyof CrewPaymentFlags, checked: boolean) => void;
   layout: "d1" | "d2" | "d3";
 };
 
@@ -245,8 +246,8 @@ function CrewsSection({
   onOpenCompensationPreview,
   onOpenWaiverPreview,
   crewPdfSignatures,
-  crewPaidOrSubmit,
-  setPaidOrSubmitForCrew,
+  crewPaymentFlags,
+  setCrewPaymentFlag,
   layout,
 }: CrewsProps) {
   const isD1 = layout === "d1";
@@ -285,6 +286,7 @@ function CrewsSection({
       <div className="mb-4">
         {crews.map((c) => {
           const sig = crewPdfSignatures[c.id];
+          const flags = crewPaymentFlags[c.id] ?? { submit: false, paid: false };
           return (
             <SubcontractorCrewCard
               key={c.id}
@@ -299,8 +301,8 @@ function CrewsSection({
                 compensation: Boolean(sig?.compensationDataUrl),
                 waiver: Boolean(sig?.waiverDataUrl),
               }}
-              paidOrSubmit={crewPaidOrSubmit[c.id] ?? "submit"}
-              onPaidOrSubmitChange={(v) => setPaidOrSubmitForCrew(c.id, v)}
+              paymentFlags={flags}
+              onPaymentFlagChange={(key, checked) => setCrewPaymentFlag(c.id, key, checked)}
             />
           );
         })}
@@ -425,12 +427,59 @@ function CrewsSection({
   );
 }
 
+const D2_WORKFLOW_STEPS = [
+  { num: "01", label: "Personnel" },
+  { num: "02", label: "Crews & cost" },
+  { num: "03", label: "Documents" },
+  { num: "04", label: "Sign" },
+  { num: "05", label: "Submit" },
+  { num: "06", label: "Paid" },
+] as const;
+
+type CrewPaidRollup = {
+  total: number;
+  submit: number;
+  paid: number;
+  sign: number;
+  signMax: number;
+};
+
+/** Design 2 stepper: done = green; current = next incomplete step after data / signatures / flags. */
+function getDesign2WorkflowState(crewTotal: number, workTotal: number, rollup: CrewPaidRollup) {
+  const personnelDone = true;
+  const crewsDone = crewTotal > 0;
+  const documentsDone = workTotal > 0;
+  const signDone = rollup.signMax > 0 && rollup.sign === rollup.signMax;
+  const submitDone = rollup.total > 0 && rollup.submit === rollup.total;
+  const paidDone = rollup.total > 0 && rollup.paid === rollup.total;
+
+  const doneFlags = [personnelDone, crewsDone, documentsDone, signDone, submitDone, paidDone];
+  const firstIncomplete = doneFlags.findIndex((d) => !d);
+
+  const stepClass = (i: number) => {
+    if (doneFlags[i]) return "scr-d2-step scr-d2-step-done";
+    if (firstIncomplete === -1) return "scr-d2-step scr-d2-step-done";
+    if (i === firstIncomplete) return "scr-d2-step scr-d2-step-current";
+    return "scr-d2-step scr-d2-step-todo";
+  };
+
+  const connectorClass = (afterStepIndex: number) =>
+    doneFlags[afterStepIndex]
+      ? "scr-d2-step-connector"
+      : "scr-d2-step-connector scr-d2-step-connector-dim";
+
+  const isCurrent = (i: number) =>
+    firstIncomplete !== -1 && !doneFlags[i] && i === firstIncomplete;
+
+  return { stepClass, connectorClass, isCurrent };
+}
+
 type CostProps = {
   totalCost: number;
   workTotal: number;
   contractAmount: number;
-  /** Counts of crews on Submit vs Paid (each denominator is total crews) */
-  crewPaidRollup: { total: number; submit: number; paid: number };
+  /** Submit/Paid checkboxes; Sign = PDF signatures done (2 per crew: Compensation + Waiver) */
+  crewPaidRollup: CrewPaidRollup;
   compact?: boolean;
 };
 
@@ -441,7 +490,7 @@ function InstallationCostSection({
   crewPaidRollup,
   compact,
 }: CostProps) {
-  const { total: crewTotal, submit: submitCrews, paid: paidCrews } = crewPaidRollup;
+  const { total: crewTotal, submit: submitCrews, paid: paidCrews, sign: signDone, signMax: signTotal } = crewPaidRollup;
   return (
     <section className={`scr-card h-100 p-4 p-lg-4 d-flex flex-column ${compact ? "scr-sidebar-cost" : ""}`}>
       <h2 className={`fw-bold mb-4 ${compact ? "h6" : "h5"}`} style={{ color: "var(--scr-slate-900)" }}>
@@ -473,6 +522,17 @@ function InstallationCostSection({
       <div className="d-flex flex-wrap align-items-center gap-3 gap-sm-4 mt-auto pt-3 border-top border-light scr-install-cost-status-row">
         <div className="d-flex align-items-baseline gap-2">
           <span className="small fw-semibold text-uppercase" style={{ color: "var(--scr-slate-500)", letterSpacing: "0.05em", fontSize: "0.65rem" }}>
+            Sign
+          </span>
+          <span className={`fw-bold scr-tabular-nums ${compact ? "fs-5" : "fs-4"}`} style={{ color: "var(--scr-slate-900)" }}>
+            {signDone}/{signTotal}
+          </span>
+        </div>
+        <span className="text-secondary opacity-50 d-none d-sm-inline" aria-hidden>
+          |
+        </span>
+        <div className="d-flex align-items-baseline gap-2">
+          <span className="small fw-semibold text-uppercase" style={{ color: "var(--scr-slate-500)", letterSpacing: "0.05em", fontSize: "0.65rem" }}>
             Submit
           </span>
           <span className={`fw-bold scr-tabular-nums ${compact ? "fs-5" : "fs-4"}`} style={{ color: "var(--scr-slate-900)" }}>
@@ -493,7 +553,7 @@ function InstallationCostSection({
       </div>
 
       <p className="small pt-2 mb-0" style={{ color: "var(--scr-slate-500)" }}>
-        Set on each crew card.
+        Sign = Compensation + Waiver per crew (2 each). Submit/Paid = checkboxes on each card (independent).
       </p>
     </section>
   );
@@ -506,7 +566,7 @@ export default function SubcontractorReport() {
   const [addCrewModalKey, setAddCrewModalKey] = useState(0);
   const [workModal, setWorkModal] = useState<{ crewId: string; editItem: CrewWorkItem | null } | null>(null);
   const [addWorkModalKey, setAddWorkModalKey] = useState(0);
-  const [crewPaidOrSubmit, setCrewPaidOrSubmit] = useState<Record<string, "paid" | "submit">>({});
+  const [crewPaymentFlags, setCrewPaymentFlags] = useState<Record<string, CrewPaymentFlags>>({});
   const compensationPreviewOpenRef = useRef<((crewId: string) => void) | null>(null);
   const waiverPreviewOpenRef = useRef<((crewId: string) => void) | null>(null);
   const [crewPdfSignatures, setCrewPdfSignatures] = useState<CrewPdfSignatures>({});
@@ -532,14 +592,27 @@ export default function SubcontractorReport() {
 
   const crewPaidRollup = useMemo(() => {
     const total = crews.length;
-    if (total === 0) return { total: 0, submit: 0, paid: 0 };
-    const paid = crews.filter((c) => crewPaidOrSubmit[c.id] === "paid").length;
-    const submit = total - paid;
-    return { total, submit, paid };
-  }, [crews, crewPaidOrSubmit]);
+    if (total === 0) return { total: 0, submit: 0, paid: 0, sign: 0, signMax: 0 };
+    const paid = crews.filter((c) => crewPaymentFlags[c.id]?.paid === true).length;
+    const submit = crews.filter((c) => crewPaymentFlags[c.id]?.submit === true).length;
+    const sign = crews.reduce((acc, c) => {
+      const s = crewPdfSignatures[c.id];
+      return acc + (s?.compensationDataUrl ? 1 : 0) + (s?.waiverDataUrl ? 1 : 0);
+    }, 0);
+    const signMax = 2 * total;
+    return { total, submit, paid, sign, signMax };
+  }, [crews, crewPaymentFlags, crewPdfSignatures]);
+
+  const d2Workflow = useMemo(
+    () => getDesign2WorkflowState(crews.length, workTotal, crewPaidRollup),
+    [crews.length, workTotal, crewPaidRollup]
+  );
 
   function handleAddCrew(payload: CrewEntryPayload) {
-    setCrewPaidOrSubmit((prev) => ({ ...prev, [payload.id]: "submit" }));
+    setCrewPaymentFlags((prev) => ({
+      ...prev,
+      [payload.id]: { submit: false, paid: false },
+    }));
     setCrews((c) => [
       ...c,
       {
@@ -550,8 +623,14 @@ export default function SubcontractorReport() {
     ]);
   }
 
-  function setPaidOrSubmitForCrew(crewId: string, value: "paid" | "submit") {
-    setCrewPaidOrSubmit((prev) => ({ ...prev, [crewId]: value }));
+  function setCrewPaymentFlag(crewId: string, key: keyof CrewPaymentFlags, checked: boolean) {
+    setCrewPaymentFlags((prev) => {
+      const cur = prev[crewId] ?? { submit: false, paid: false };
+      return {
+        ...prev,
+        [crewId]: { ...cur, [key]: checked },
+      };
+    });
   }
 
   function handleSaveWorkItem(crewId: string, item: CrewWorkItem) {
@@ -615,8 +694,8 @@ export default function SubcontractorReport() {
     onOpenCompensationPreview: (crewId: string) => compensationPreviewOpenRef.current?.(crewId),
     onOpenWaiverPreview: (crewId: string) => waiverPreviewOpenRef.current?.(crewId),
     crewPdfSignatures,
-    crewPaidOrSubmit,
-    setPaidOrSubmitForCrew,
+    crewPaymentFlags,
+    setCrewPaymentFlag,
   };
 
   return (
@@ -696,35 +775,20 @@ export default function SubcontractorReport() {
 
             {design === 2 ? (
               <div className="scr-d2-stepper scr-d2-stepper-extended mb-4" aria-label="Workflow progress">
-                <div className="scr-d2-step scr-d2-step-done">
-                  <span className="scr-d2-step-num">01</span>
-                  <span className="scr-d2-step-label">Personnel</span>
-                </div>
-                <span className="scr-d2-step-connector" aria-hidden />
-                <div className="scr-d2-step scr-d2-step-current">
-                  <span className="scr-d2-step-num">02</span>
-                  <span className="scr-d2-step-label">Crews &amp; cost</span>
-                </div>
-                <span className="scr-d2-step-connector scr-d2-step-connector-dim" aria-hidden />
-                <div className="scr-d2-step scr-d2-step-todo">
-                  <span className="scr-d2-step-num">03</span>
-                  <span className="scr-d2-step-label">Documents</span>
-                </div>
-                <span className="scr-d2-step-connector scr-d2-step-connector-dim" aria-hidden />
-                <div className="scr-d2-step scr-d2-step-todo">
-                  <span className="scr-d2-step-num">04</span>
-                  <span className="scr-d2-step-label">Sign</span>
-                </div>
-                <span className="scr-d2-step-connector scr-d2-step-connector-dim" aria-hidden />
-                <div className="scr-d2-step scr-d2-step-todo">
-                  <span className="scr-d2-step-num">05</span>
-                  <span className="scr-d2-step-label">Submit</span>
-                </div>
-                <span className="scr-d2-step-connector scr-d2-step-connector-dim" aria-hidden />
-                <div className="scr-d2-step scr-d2-step-todo">
-                  <span className="scr-d2-step-num">06</span>
-                  <span className="scr-d2-step-label">Paid</span>
-                </div>
+                {D2_WORKFLOW_STEPS.map((step, i) => (
+                  <Fragment key={step.label}>
+                    {i > 0 ? (
+                      <span className={d2Workflow.connectorClass(i - 1)} aria-hidden />
+                    ) : null}
+                    <div
+                      className={d2Workflow.stepClass(i)}
+                      aria-current={d2Workflow.isCurrent(i) ? "step" : undefined}
+                    >
+                      <span className="scr-d2-step-num">{step.num}</span>
+                      <span className="scr-d2-step-label">{step.label}</span>
+                    </div>
+                  </Fragment>
+                ))}
               </div>
             ) : null}
 

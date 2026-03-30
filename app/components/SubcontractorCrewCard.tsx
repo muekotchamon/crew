@@ -1,6 +1,6 @@
 "use client";
 
-import type { CrewEntry, CrewWorkItem } from "./crewTypes";
+import type { CrewEntry, CrewPaymentFlags, CrewWorkItem } from "./crewTypes";
 
 type Props = {
   crew: CrewEntry;
@@ -14,8 +14,8 @@ type Props = {
   onOpenWaiverPreview?: (crewId: string) => void;
   /** Which PDFs already have Sign online applied (persists on the card) */
   pdfSigned?: { compensation: boolean; waiver: boolean };
-  paidOrSubmit: "paid" | "submit";
-  onPaidOrSubmitChange: (value: "paid" | "submit") => void;
+  paymentFlags: CrewPaymentFlags;
+  onPaymentFlagChange: (key: keyof CrewPaymentFlags, checked: boolean) => void;
 };
 
 /** Work lines that would appear in the compensation agreement PDF */
@@ -42,14 +42,13 @@ export default function SubcontractorCrewCard({
   onOpenCompensationPreview,
   onOpenWaiverPreview,
   pdfSigned,
-  paidOrSubmit,
-  onPaidOrSubmitChange,
+  paymentFlags,
+  onPaymentFlagChange,
 }: Props) {
   const displayName = crew.employeeName || "Unnamed subcontractor";
   const showCrewPdfIcons = layout === "d2" && crewHasAgreementLines(crew);
   const showSignedRow = Boolean(pdfSigned?.compensation || pdfSigned?.waiver);
   const crewTotalCost = crew.workItems.reduce((s, w) => s + (Number(w.installCost) || 0), 0);
-  const radioName = `crew-paid-or-submit-${crew.id}`;
   const paidId = `scr-${crew.id}-paid`.replace(/[^a-zA-Z0-9_-]/g, "-");
   const submitId = `scr-${crew.id}-submit`.replace(/[^a-zA-Z0-9_-]/g, "-");
 
@@ -141,7 +140,7 @@ export default function SubcontractorCrewCard({
               </th>
               <th scope="col">Description</th>
               <th scope="col" className="text-center">
-                Install/QTY
+                Cost
               </th>
               <th scope="col" className="text-center">
                 QTY
@@ -215,16 +214,15 @@ export default function SubcontractorCrewCard({
           </span>
         </div>
         <fieldset className="border-0 p-0 m-0 flex-shrink-0">
-          <legend className="visually-hidden">Paid or Submit for this crew</legend>
+          <legend className="visually-hidden">Submit and Paid flags for this crew</legend>
           <div className="d-flex align-items-center flex-wrap gap-3">
             <div className="form-check mb-0">
               <input
                 className="form-check-input"
-                type="radio"
-                name={radioName}
+                type="checkbox"
                 id={submitId}
-                checked={paidOrSubmit === "submit"}
-                onChange={() => onPaidOrSubmitChange("submit")}
+                checked={paymentFlags.submit}
+                onChange={(e) => onPaymentFlagChange("submit", e.target.checked)}
               />
               <label className="form-check-label fw-medium" htmlFor={submitId} style={{ color: "var(--scr-slate-800)" }}>
                 Submit
@@ -233,11 +231,10 @@ export default function SubcontractorCrewCard({
             <div className="form-check mb-0">
               <input
                 className="form-check-input"
-                type="radio"
-                name={radioName}
+                type="checkbox"
                 id={paidId}
-                checked={paidOrSubmit === "paid"}
-                onChange={() => onPaidOrSubmitChange("paid")}
+                checked={paymentFlags.paid}
+                onChange={(e) => onPaymentFlagChange("paid", e.target.checked)}
               />
               <label className="form-check-label fw-medium" htmlFor={paidId} style={{ color: "var(--scr-slate-800)" }}>
                 Paid

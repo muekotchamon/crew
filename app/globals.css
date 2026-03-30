@@ -532,6 +532,10 @@ body {
   color: var(--scr-emerald);
 }
 
+.scr-d2-step-done .scr-d2-step-label {
+  color: var(--scr-emerald);
+}
+
 .scr-d2-step-current .scr-d2-step-num {
   color: var(--scr-emerald-hover);
 }
