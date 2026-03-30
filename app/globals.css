@@ -593,8 +593,16 @@ body {
   flex-shrink: 0;
 }
 
-.scr-d2-personnel-bar {
-  border-top: 2px solid rgba(5, 150, 105, 0.18);
+/* Personnel + crews share one card in Design 2 */
+.scr-d2-unified-personnel {
+  border-bottom: 2px solid rgba(5, 150, 105, 0.18);
+  padding-top: 0.25rem;
+}
+
+@media (min-width: 992px) {
+  .scr-app.scr-design-2 .scr-d2-crews-panel {
+    min-height: clamp(26rem, 52vh, 44rem);
+  }
 }
 
 .scr-d3-triple {

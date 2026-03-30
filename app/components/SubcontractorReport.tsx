@@ -157,34 +157,7 @@ function personnelList() {
   ));
 }
 
-function AssignPersonnelSection({ layout }: { layout: "d1" | "d2" | "d3" }) {
-  if (layout === "d2") {
-    return (
-      <section className="scr-card scr-d2-personnel-bar p-3 p-lg-4" aria-labelledby="scr-personnel-d2">
-        <div className="d-flex flex-column flex-md-row flex-md-wrap align-items-md-center justify-content-md-between gap-3">
-          <div className="d-flex align-items-center gap-2 flex-shrink-0">
-            <span className="scr-d2-personnel-kicker text-uppercase fw-bold small" style={{ color: "var(--scr-slate-500)" }}>
-              Personnel
-            </span>
-            <span
-              className="badge rounded-0 fw-semibold px-2 py-1"
-              style={{
-                background: "var(--scr-emerald-soft)",
-                color: "var(--scr-emerald)",
-                fontSize: "0.65rem",
-              }}
-            >
-              OK
-            </span>
-          </div>
-          <div className="d-flex flex-column flex-sm-row flex-wrap gap-3 flex-grow-1 justify-content-md-end" id="scr-personnel-d2">
-            {personnelList()}
-          </div>
-        </div>
-      </section>
-    );
-  }
-
+function AssignPersonnelSection({ layout }: { layout: "d1" | "d3" }) {
   if (layout === "d3") {
     return (
       <section className="scr-card scr-d3-personnel-rail p-3 p-lg-4 mb-4" aria-labelledby="scr-personnel-d3">
@@ -318,7 +291,35 @@ function CrewsSection({
 
   if (layout === "d2") {
     return (
-      <section className="scr-card scr-card-step-focus scr-d2-crews-panel p-4 p-lg-4 border border-2 h-100 d-flex flex-column">
+      <section className="scr-card scr-card-step-focus scr-d2-crews-panel p-4 p-lg-5 border border-2 h-100 d-flex flex-column">
+        <div className="scr-d2-unified-personnel pb-4 mb-4" aria-labelledby="scr-personnel-d2">
+          <div className="d-flex flex-column flex-md-row flex-md-wrap align-items-md-center justify-content-md-between gap-3">
+            <div className="d-flex align-items-center gap-2 flex-shrink-0">
+              <span
+                className="scr-d2-personnel-kicker text-uppercase fw-bold small"
+                style={{ color: "var(--scr-slate-500)" }}
+              >
+                Personnel
+              </span>
+              <span
+                className="badge rounded-0 fw-semibold px-2 py-1"
+                style={{
+                  background: "var(--scr-emerald-soft)",
+                  color: "var(--scr-emerald)",
+                  fontSize: "0.65rem",
+                }}
+              >
+                OK
+              </span>
+            </div>
+            <div
+              className="d-flex flex-column flex-sm-row flex-wrap gap-3 flex-grow-1 justify-content-md-end"
+              id="scr-personnel-d2"
+            >
+              {personnelList()}
+            </div>
+          </div>
+        </div>
         <div className="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
           <div>
             <h2 className="h6 fw-bold mb-1" style={{ color: "var(--scr-slate-900)" }}>
@@ -682,28 +683,21 @@ export default function SubcontractorReport() {
             ) : null}
 
             {design === 2 ? (
-              <>
-                <div className="row g-4 mb-4 align-items-start scr-d2-split">
-                  <div className="col-lg-8 order-1">
-                    <CrewsSection {...crewsBase} layout="d2" />
-                  </div>
-                  <div className="col-lg-4 order-2">
-                    <div className="d-flex flex-column gap-4 scr-d2-sidebar">
-                      <div className="sticky-lg-top scr-d2-sticky-stack" style={{ top: "0.75rem" }}>
-                        <InstallationCostSection {...costProps} compact />
-                        <div className="mt-4">
-                          <DocumentsPanel crews={crews} workTotal={workTotal} />
-                        </div>
+              <div className="row g-4 mb-4 align-items-stretch scr-d2-split">
+                <div className="col-lg-8 order-1">
+                  <CrewsSection {...crewsBase} layout="d2" />
+                </div>
+                <div className="col-lg-4 order-2">
+                  <div className="d-flex flex-column gap-4 scr-d2-sidebar">
+                    <div className="sticky-lg-top scr-d2-sticky-stack" style={{ top: "0.75rem" }}>
+                      <InstallationCostSection {...costProps} compact />
+                      <div className="mt-4">
+                        <DocumentsPanel crews={crews} workTotal={workTotal} />
                       </div>
                     </div>
                   </div>
                 </div>
-                <div className="row mb-4">
-                  <div className="col-12 col-lg-8">
-                    <AssignPersonnelSection layout="d2" />
-                  </div>
-                </div>
-              </>
+              </div>
             ) : null}
 
             {design === 3 ? (
