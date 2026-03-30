@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import AddCrewModal from "./AddCrewModal";
 import AddWorkModal from "./AddWorkModal";
 import {
@@ -10,7 +10,12 @@ import {
 } from "./DesignThemeContext";
 import DocumentsPanel from "./DocumentsPanel";
 import SubcontractorCrewCard from "./SubcontractorCrewCard";
-import type { CrewEntry, CrewEntryPayload, CrewWorkItem } from "./crewTypes";
+import type {
+  CrewEntry,
+  CrewEntryPayload,
+  CrewPdfSignatures,
+  CrewWorkItem,
+} from "./crewTypes";
 
 function CrewPlaceholderIllustration() {
   return (
@@ -224,6 +229,10 @@ type CrewsProps = {
   openEditWorkModal: (crewId: string, item: CrewWorkItem) => void;
   onDeleteWork: (crewId: string, workId: string) => void;
   onOpenCompensationPreview?: (crewId: string) => void;
+  onOpenWaiverPreview?: (crewId: string) => void;
+  crewPdfSignatures: CrewPdfSignatures;
+  crewPaidOrSubmit: Record<string, "paid" | "submit">;
+  setPaidOrSubmitForCrew: (crewId: string, value: "paid" | "submit") => void;
   layout: "d1" | "d2" | "d3";
 };
 
@@ -234,6 +243,10 @@ function CrewsSection({
   openEditWorkModal,
   onDeleteWork,
   onOpenCompensationPreview,
+  onOpenWaiverPreview,
+  crewPdfSignatures,
+  crewPaidOrSubmit,
+  setPaidOrSubmitForCrew,
   layout,
 }: CrewsProps) {
   const isD1 = layout === "d1";
@@ -270,23 +283,27 @@ function CrewsSection({
         {crews.length} crew{crews.length > 1 ? "s" : ""} on this report
       </p>
       <div className="mb-4">
-        {crews.map((c) => (
-          <SubcontractorCrewCard
-            key={c.id}
-            crew={c}
-            layout={layout}
-            onAddWork={openAddWorkModal}
-            onEditWork={openEditWorkModal}
-            onDeleteWork={onDeleteWork}
-            onOpenCompensationPreview={onOpenCompensationPreview}
-          />
-        ))}
-      </div>
-      <div className="scr-add-crew-wrap d-inline-block">
-        <button type="button" className="scr-add-crew-btn" onClick={openAddCrewModal}>
-          <i className="bi bi-plus-lg me-2" aria-hidden />
-          Add Crew
-        </button>
+        {crews.map((c) => {
+          const sig = crewPdfSignatures[c.id];
+          return (
+            <SubcontractorCrewCard
+              key={c.id}
+              crew={c}
+              layout={layout}
+              onAddWork={openAddWorkModal}
+              onEditWork={openEditWorkModal}
+              onDeleteWork={onDeleteWork}
+              onOpenCompensationPreview={onOpenCompensationPreview}
+              onOpenWaiverPreview={onOpenWaiverPreview}
+              pdfSigned={{
+                compensation: Boolean(sig?.compensationDataUrl),
+                waiver: Boolean(sig?.waiverDataUrl),
+              }}
+              paidOrSubmit={crewPaidOrSubmit[c.id] ?? "submit"}
+              onPaidOrSubmitChange={(v) => setPaidOrSubmitForCrew(c.id, v)}
+            />
+          );
+        })}
       </div>
     </div>
   );
@@ -383,13 +400,23 @@ function CrewsSection({
           </div>
         </div>
         <div className="flex-grow-1 text-center ms-lg-4">
-          <div className="text-start mb-3">
-            <h2 className="h6 fw-bold mb-1" style={{ color: "var(--scr-slate-900)" }}>
-              Add Crews
-            </h2>
-            <p className="small mb-0" style={{ color: "var(--scr-slate-500)" }}>
-              Current step — organize workers into crews for cost allocation.
-            </p>
+          <div className="d-flex flex-wrap align-items-end justify-content-between gap-3 text-start mb-3">
+            <div>
+              <h2 className="h6 fw-bold mb-1" style={{ color: "var(--scr-slate-900)" }}>
+                Add Crews
+              </h2>
+              <p className="small mb-0" style={{ color: "var(--scr-slate-500)" }}>
+                Current step — organize workers into crews for cost allocation.
+              </p>
+            </div>
+            {crews.length > 0 ? (
+              <div className="scr-add-crew-wrap flex-shrink-0">
+                <button type="button" className="scr-add-crew-btn" onClick={openAddCrewModal}>
+                  <i className="bi bi-plus-lg me-2" aria-hidden />
+                  Add Crew
+                </button>
+              </div>
+            ) : null}
           </div>
           {crewsMain}
         </div>
@@ -399,24 +426,22 @@ function CrewsSection({
 }
 
 type CostProps = {
-  actionGroupId: string;
-  paidOrSubmit: "paid" | "submit";
-  setPaidOrSubmit: (v: "paid" | "submit") => void;
   totalCost: number;
   workTotal: number;
   contractAmount: number;
+  /** Counts of crews on Submit vs Paid (each denominator is total crews) */
+  crewPaidRollup: { total: number; submit: number; paid: number };
   compact?: boolean;
 };
 
 function InstallationCostSection({
-  actionGroupId,
-  paidOrSubmit,
-  setPaidOrSubmit,
   totalCost,
   workTotal,
   contractAmount,
+  crewPaidRollup,
   compact,
 }: CostProps) {
+  const { total: crewTotal, submit: submitCrews, paid: paidCrews } = crewPaidRollup;
   return (
     <section className={`scr-card h-100 p-4 p-lg-4 d-flex flex-column ${compact ? "scr-sidebar-cost" : ""}`}>
       <h2 className={`fw-bold mb-4 ${compact ? "h6" : "h5"}`} style={{ color: "var(--scr-slate-900)" }}>
@@ -445,39 +470,31 @@ function InstallationCostSection({
         </li>
       </ul>
 
-      <div className="pt-4 mt-auto">
-        <fieldset className="border-0 p-0 m-0">
-          <legend className="visually-hidden">Paid or Submit</legend>
-          <div className="d-flex align-items-center flex-wrap gap-3">
-            <div className="form-check mb-0">
-              <input
-                className="form-check-input"
-                type="radio"
-                name={`paid-or-submit-${actionGroupId}`}
-                id={`${actionGroupId}-paid`}
-                checked={paidOrSubmit === "paid"}
-                onChange={() => setPaidOrSubmit("paid")}
-              />
-              <label className="form-check-label fw-medium" htmlFor={`${actionGroupId}-paid`} style={{ color: "var(--scr-slate-800)" }}>
-                Paid
-              </label>
-            </div>
-            <div className="form-check mb-0">
-              <input
-                className="form-check-input"
-                type="radio"
-                name={`paid-or-submit-${actionGroupId}`}
-                id={`${actionGroupId}-submit`}
-                checked={paidOrSubmit === "submit"}
-                onChange={() => setPaidOrSubmit("submit")}
-              />
-              <label className="form-check-label fw-medium" htmlFor={`${actionGroupId}-submit`} style={{ color: "var(--scr-slate-800)" }}>
-                Submit
-              </label>
-            </div>
-          </div>
-        </fieldset>
+      <div className="d-flex flex-wrap align-items-center gap-3 gap-sm-4 mt-auto pt-3 border-top border-light scr-install-cost-status-row">
+        <div className="d-flex align-items-baseline gap-2">
+          <span className="small fw-semibold text-uppercase" style={{ color: "var(--scr-slate-500)", letterSpacing: "0.05em", fontSize: "0.65rem" }}>
+            Submit
+          </span>
+          <span className={`fw-bold scr-tabular-nums ${compact ? "fs-5" : "fs-4"}`} style={{ color: "var(--scr-slate-900)" }}>
+            {submitCrews}/{crewTotal}
+          </span>
+        </div>
+        <span className="text-secondary opacity-50 d-none d-sm-inline" aria-hidden>
+          |
+        </span>
+        <div className="d-flex align-items-baseline gap-2">
+          <span className="small fw-semibold text-uppercase" style={{ color: "var(--scr-slate-500)", letterSpacing: "0.05em", fontSize: "0.65rem" }}>
+            Paid
+          </span>
+          <span className={`fw-bold scr-tabular-nums ${compact ? "fs-5" : "fs-4"}`} style={{ color: "var(--scr-slate-900)" }}>
+            {paidCrews}/{crewTotal}
+          </span>
+        </div>
       </div>
+
+      <p className="small pt-2 mb-0" style={{ color: "var(--scr-slate-500)" }}>
+        Set on each crew card.
+      </p>
     </section>
   );
 }
@@ -489,9 +506,22 @@ export default function SubcontractorReport() {
   const [addCrewModalKey, setAddCrewModalKey] = useState(0);
   const [workModal, setWorkModal] = useState<{ crewId: string; editItem: CrewWorkItem | null } | null>(null);
   const [addWorkModalKey, setAddWorkModalKey] = useState(0);
-  const [paidOrSubmit, setPaidOrSubmit] = useState<"paid" | "submit">("submit");
-  const actionGroupId = useId();
+  const [crewPaidOrSubmit, setCrewPaidOrSubmit] = useState<Record<string, "paid" | "submit">>({});
   const compensationPreviewOpenRef = useRef<((crewId: string) => void) | null>(null);
+  const waiverPreviewOpenRef = useRef<((crewId: string) => void) | null>(null);
+  const [crewPdfSignatures, setCrewPdfSignatures] = useState<CrewPdfSignatures>({});
+
+  function handleCrewPdfSigned(crewId: string, kind: "compensation" | "waiver", dataUrl: string) {
+    setCrewPdfSignatures((prev) => ({
+      ...prev,
+      [crewId]: {
+        ...prev[crewId],
+        ...(kind === "compensation"
+          ? { compensationDataUrl: dataUrl }
+          : { waiverDataUrl: dataUrl }),
+      },
+    }));
+  }
 
   const workTotal = crews.reduce(
     (sum, crew) => sum + crew.workItems.reduce((s, w) => s + (Number(w.installCost) || 0), 0),
@@ -500,7 +530,16 @@ export default function SubcontractorReport() {
   const contractAmount = 0;
   const totalCost = contractAmount + workTotal;
 
+  const crewPaidRollup = useMemo(() => {
+    const total = crews.length;
+    if (total === 0) return { total: 0, submit: 0, paid: 0 };
+    const paid = crews.filter((c) => crewPaidOrSubmit[c.id] === "paid").length;
+    const submit = total - paid;
+    return { total, submit, paid };
+  }, [crews, crewPaidOrSubmit]);
+
   function handleAddCrew(payload: CrewEntryPayload) {
+    setCrewPaidOrSubmit((prev) => ({ ...prev, [payload.id]: "submit" }));
     setCrews((c) => [
       ...c,
       {
@@ -509,6 +548,10 @@ export default function SubcontractorReport() {
         workItems: [],
       },
     ]);
+  }
+
+  function setPaidOrSubmitForCrew(crewId: string, value: "paid" | "submit") {
+    setCrewPaidOrSubmit((prev) => ({ ...prev, [crewId]: value }));
   }
 
   function handleSaveWorkItem(crewId: string, item: CrewWorkItem) {
@@ -557,12 +600,10 @@ export default function SubcontractorReport() {
   const dClass = scrDesignClass(design);
 
   const costProps: CostProps = {
-    actionGroupId,
-    paidOrSubmit,
-    setPaidOrSubmit,
     totalCost,
     workTotal,
     contractAmount,
+    crewPaidRollup,
   };
 
   const crewsBase = {
@@ -572,6 +613,10 @@ export default function SubcontractorReport() {
     openEditWorkModal,
     onDeleteWork: handleDeleteWorkItem,
     onOpenCompensationPreview: (crewId: string) => compensationPreviewOpenRef.current?.(crewId),
+    onOpenWaiverPreview: (crewId: string) => waiverPreviewOpenRef.current?.(crewId),
+    crewPdfSignatures,
+    crewPaidOrSubmit,
+    setPaidOrSubmitForCrew,
   };
 
   return (
@@ -650,7 +695,7 @@ export default function SubcontractorReport() {
             </header>
 
             {design === 2 ? (
-              <div className="scr-d2-stepper mb-4" aria-label="Workflow progress">
+              <div className="scr-d2-stepper scr-d2-stepper-extended mb-4" aria-label="Workflow progress">
                 <div className="scr-d2-step scr-d2-step-done">
                   <span className="scr-d2-step-num">01</span>
                   <span className="scr-d2-step-label">Personnel</span>
@@ -658,12 +703,27 @@ export default function SubcontractorReport() {
                 <span className="scr-d2-step-connector" aria-hidden />
                 <div className="scr-d2-step scr-d2-step-current">
                   <span className="scr-d2-step-num">02</span>
-                  <span className="scr-d2-step-label">Crews & cost</span>
+                  <span className="scr-d2-step-label">Crews &amp; cost</span>
                 </div>
                 <span className="scr-d2-step-connector scr-d2-step-connector-dim" aria-hidden />
                 <div className="scr-d2-step scr-d2-step-todo">
                   <span className="scr-d2-step-num">03</span>
                   <span className="scr-d2-step-label">Documents</span>
+                </div>
+                <span className="scr-d2-step-connector scr-d2-step-connector-dim" aria-hidden />
+                <div className="scr-d2-step scr-d2-step-todo">
+                  <span className="scr-d2-step-num">04</span>
+                  <span className="scr-d2-step-label">Sign</span>
+                </div>
+                <span className="scr-d2-step-connector scr-d2-step-connector-dim" aria-hidden />
+                <div className="scr-d2-step scr-d2-step-todo">
+                  <span className="scr-d2-step-num">05</span>
+                  <span className="scr-d2-step-label">Submit</span>
+                </div>
+                <span className="scr-d2-step-connector scr-d2-step-connector-dim" aria-hidden />
+                <div className="scr-d2-step scr-d2-step-todo">
+                  <span className="scr-d2-step-num">06</span>
+                  <span className="scr-d2-step-label">Paid</span>
                 </div>
               </div>
             ) : null}
@@ -677,15 +737,8 @@ export default function SubcontractorReport() {
                     <CrewsSection {...crewsBase} layout="d1" />
                   </div>
                 </div>
-                <div className="row g-4 mb-4 scr-cost-docs-row">
-                  <div className="col-lg-6">
-                    <DocumentsPanel
-                      crews={crews}
-                      workTotal={workTotal}
-                      compensationPreviewOpenRef={compensationPreviewOpenRef}
-                    />
-                  </div>
-                  <div className="col-lg-6">
+                <div className="row g-4 mb-4 scr-cost-docs-row justify-content-center">
+                  <div className="col-lg-8 col-xl-7">
                     <InstallationCostSection {...costProps} />
                   </div>
                 </div>
@@ -701,13 +754,6 @@ export default function SubcontractorReport() {
                   <div className="d-flex flex-column gap-4 scr-d2-sidebar">
                     <div className="sticky-lg-top scr-d2-sticky-stack" style={{ top: "0.75rem" }}>
                       <InstallationCostSection {...costProps} compact />
-                      <div className="mt-4">
-                        <DocumentsPanel
-                          crews={crews}
-                          workTotal={workTotal}
-                          compensationPreviewOpenRef={compensationPreviewOpenRef}
-                        />
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -721,19 +767,20 @@ export default function SubcontractorReport() {
                   <div className="col-12 col-lg-3 order-2 order-lg-1">
                     <InstallationCostSection {...costProps} compact />
                   </div>
-                  <div className="col-12 col-lg-6 order-1 order-lg-2">
+                  <div className="col-12 col-lg-9 order-1 order-lg-2">
                     <CrewsSection {...crewsBase} layout="d3" />
-                  </div>
-                  <div className="col-12 col-lg-3 order-3">
-                    <DocumentsPanel
-                      crews={crews}
-                      workTotal={workTotal}
-                      compensationPreviewOpenRef={compensationPreviewOpenRef}
-                    />
                   </div>
                 </div>
               </>
             ) : null}
+
+            <DocumentsPanel
+              crews={crews}
+              crewPdfSignatures={crewPdfSignatures}
+              onCrewPdfSigned={handleCrewPdfSigned}
+              compensationPreviewOpenRef={compensationPreviewOpenRef}
+              waiverPreviewOpenRef={waiverPreviewOpenRef}
+            />
           </div>
         </div>
       </div>

@@ -10,6 +10,12 @@ type Props = {
   onDeleteWork: (crewId: string, workId: string) => void;
   /** Opens this crew’s Subcontractor Compensation Agreement PDF preview */
   onOpenCompensationPreview?: (crewId: string) => void;
+  /** Opens this crew’s Waiver and Release of Lien PDF preview */
+  onOpenWaiverPreview?: (crewId: string) => void;
+  /** Which PDFs already have Sign online applied (persists on the card) */
+  pdfSigned?: { compensation: boolean; waiver: boolean };
+  paidOrSubmit: "paid" | "submit";
+  onPaidOrSubmitChange: (value: "paid" | "submit") => void;
 };
 
 /** Work lines that would appear in the compensation agreement PDF */
@@ -34,9 +40,18 @@ export default function SubcontractorCrewCard({
   onEditWork,
   onDeleteWork,
   onOpenCompensationPreview,
+  onOpenWaiverPreview,
+  pdfSigned,
+  paidOrSubmit,
+  onPaidOrSubmitChange,
 }: Props) {
   const displayName = crew.employeeName || "Unnamed subcontractor";
-  const showCompensationPdfIcon = layout === "d2" && crewHasAgreementLines(crew);
+  const showCrewPdfIcons = layout === "d2" && crewHasAgreementLines(crew);
+  const showSignedRow = Boolean(pdfSigned?.compensation || pdfSigned?.waiver);
+  const crewTotalCost = crew.workItems.reduce((s, w) => s + (Number(w.installCost) || 0), 0);
+  const radioName = `crew-paid-or-submit-${crew.id}`;
+  const paidId = `scr-${crew.id}-paid`.replace(/[^a-zA-Z0-9_-]/g, "-");
+  const submitId = `scr-${crew.id}-submit`.replace(/[^a-zA-Z0-9_-]/g, "-");
 
   return (
     <div className="scr-work-crew-card scr-card p-4 mb-3">
@@ -53,15 +68,34 @@ export default function SubcontractorCrewCard({
           </span>
         </div>
         <div className="d-flex align-items-center gap-2 flex-shrink-0 align-self-start">
-          {showCompensationPdfIcon && onOpenCompensationPreview ? (
+          {showCrewPdfIcons && onOpenCompensationPreview ? (
             <button
               type="button"
-              className="scr-d2-crew-pdf-icon d-inline-flex align-items-center justify-content-center flex-shrink-0 rounded-2 border"
-              title="Preview this subcontractor’s Compensation Agreement PDF"
+              className={`scr-d2-crew-pdf-icon d-inline-flex align-items-center justify-content-center flex-shrink-0 rounded-2 border ${pdfSigned?.compensation ? "scr-pdf-icon--signed" : ""}`}
+              title={
+                pdfSigned?.compensation
+                  ? "Compensation PDF — signed (open to preview or re-sign)"
+                  : "Preview this subcontractor’s Compensation Agreement PDF"
+              }
               aria-label="Preview Subcontractor Compensation Agreement PDF for this crew"
               onClick={() => onOpenCompensationPreview(crew.id)}
             >
               <i className="bi bi-file-earmark-pdf" aria-hidden />
+            </button>
+          ) : null}
+          {showCrewPdfIcons && onOpenWaiverPreview ? (
+            <button
+              type="button"
+              className={`scr-d2-crew-waiver-icon d-inline-flex align-items-center justify-content-center flex-shrink-0 rounded-2 border ${pdfSigned?.waiver ? "scr-pdf-icon--signed-waiver" : ""}`}
+              title={
+                pdfSigned?.waiver
+                  ? "Waiver PDF — signed (open to preview or re-sign)"
+                  : "Preview this subcontractor’s Waiver and Release of Lien PDF"
+              }
+              aria-label="Preview Waiver and Release of Lien PDF for this crew"
+              onClick={() => onOpenWaiverPreview(crew.id)}
+            >
+              <i className="bi bi-file-earmark-text" aria-hidden />
             </button>
           ) : null}
           <button
@@ -74,6 +108,29 @@ export default function SubcontractorCrewCard({
           </button>
         </div>
       </div>
+
+      {showSignedRow ? (
+        <div className="d-flex flex-wrap align-items-center gap-2 mb-3 pb-2 scr-crew-pdf-signed-row">
+          <span
+            className="small fw-bold text-uppercase flex-shrink-0"
+            style={{ color: "var(--scr-slate-500)", fontSize: "0.65rem", letterSpacing: "0.06em" }}
+          >
+            PDF signed
+          </span>
+          {pdfSigned?.compensation ? (
+            <span className="badge rounded-pill fw-semibold d-inline-flex align-items-center gap-1 border scr-crew-signed-badge scr-crew-signed-badge--comp">
+              <i className="bi bi-check2-circle" aria-hidden />
+              Compensation
+            </span>
+          ) : null}
+          {pdfSigned?.waiver ? (
+            <span className="badge rounded-pill fw-semibold d-inline-flex align-items-center gap-1 border scr-crew-signed-badge scr-crew-signed-badge--waiver">
+              <i className="bi bi-check2-circle" aria-hidden />
+              Waiver
+            </span>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="table-responsive rounded-3 border">
         <table className="table table-hover align-middle mb-0 scr-work-table">
@@ -139,6 +196,55 @@ export default function SubcontractorCrewCard({
             )}
           </tbody>
         </table>
+      </div>
+
+      <div className="scr-crew-card-cost-foot d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center justify-content-sm-between gap-3 pt-3 mt-3 border-top border-light">
+        <div className="d-flex align-items-baseline justify-content-between gap-3 min-w-0">
+          <span
+            className="small fw-semibold text-uppercase flex-shrink-0"
+            style={{ color: "var(--scr-slate-500)", letterSpacing: "0.04em" }}
+          >
+            Total Cost
+          </span>
+          <span className="fw-bold fs-5 mb-0 text-end" style={{ color: "var(--scr-slate-900)" }}>
+            $
+            {crewTotalCost.toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
+          </span>
+        </div>
+        <fieldset className="border-0 p-0 m-0 flex-shrink-0">
+          <legend className="visually-hidden">Paid or Submit for this crew</legend>
+          <div className="d-flex align-items-center flex-wrap gap-3">
+            <div className="form-check mb-0">
+              <input
+                className="form-check-input"
+                type="radio"
+                name={radioName}
+                id={submitId}
+                checked={paidOrSubmit === "submit"}
+                onChange={() => onPaidOrSubmitChange("submit")}
+              />
+              <label className="form-check-label fw-medium" htmlFor={submitId} style={{ color: "var(--scr-slate-800)" }}>
+                Submit
+              </label>
+            </div>
+            <div className="form-check mb-0">
+              <input
+                className="form-check-input"
+                type="radio"
+                name={radioName}
+                id={paidId}
+                checked={paidOrSubmit === "paid"}
+                onChange={() => onPaidOrSubmitChange("paid")}
+              />
+              <label className="form-check-label fw-medium" htmlFor={paidId} style={{ color: "var(--scr-slate-800)" }}>
+                Paid
+              </label>
+            </div>
+          </div>
+        </fieldset>
       </div>
     </div>
   );

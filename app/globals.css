@@ -405,6 +405,18 @@ body {
   border: 1px solid rgba(15, 23, 42, 0.08);
 }
 
+.scr-crew-card-cost-foot {
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+.scr-install-cost-status-row {
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+.scr-tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
 .scr-work-table thead th {
   background: #f1f5f9;
   color: var(--scr-slate-600);
@@ -541,6 +553,27 @@ body {
   background: rgba(148, 163, 184, 0.35);
 }
 
+/* Design 2: six steps — tighter connectors when wrapped */
+.scr-d2-stepper-extended .scr-d2-step-connector {
+  max-width: 28px;
+  min-width: 10px;
+  flex: 1 1 12px;
+}
+
+.scr-d2-stepper-extended .scr-d2-step-label {
+  max-width: 7.5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 575.98px) {
+  .scr-d2-stepper-extended .scr-d2-step-label {
+    max-width: 5.25rem;
+    font-size: 0.68rem;
+  }
+}
+
 /* Design 2: PDF agreement — opens same preview as Documents */
 .scr-app.scr-design-2 button.scr-d2-crew-pdf-icon {
   width: 1.85rem;
@@ -572,6 +605,71 @@ body {
 .scr-app.scr-design-2 button.scr-d2-crew-pdf-icon:focus-visible {
   outline: 2px solid var(--scr-emerald);
   outline-offset: 2px;
+}
+
+/* Design 2: Waiver PDF — per crew, next to compensation icon */
+.scr-app.scr-design-2 button.scr-d2-crew-waiver-icon {
+  width: 1.85rem;
+  height: 1.85rem;
+  padding: 0;
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1;
+  color: #1d4ed8;
+  background: rgba(29, 78, 216, 0.08);
+  border-color: rgba(29, 78, 216, 0.28) !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.12s ease;
+}
+
+.scr-app.scr-design-2 button.scr-d2-crew-waiver-icon:hover {
+  background: rgba(29, 78, 216, 0.14);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+}
+
+.scr-app.scr-design-2 button.scr-d2-crew-waiver-icon:active {
+  transform: scale(0.96);
+}
+
+.scr-app.scr-design-2 button.scr-d2-crew-waiver-icon:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.scr-app.scr-design-2 button.scr-d2-crew-pdf-icon.scr-pdf-icon--signed {
+  box-shadow:
+    0 0 0 2px rgba(5, 150, 105, 0.45),
+    0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.scr-app.scr-design-2 button.scr-d2-crew-waiver-icon.scr-pdf-icon--signed-waiver {
+  box-shadow:
+    0 0 0 2px rgba(37, 99, 235, 0.45),
+    0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.scr-crew-pdf-signed-row {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.scr-crew-signed-badge {
+  font-size: 0.7rem;
+}
+
+.scr-crew-signed-badge--comp {
+  background: var(--scr-emerald-soft) !important;
+  color: var(--scr-emerald) !important;
+  border-color: rgba(5, 150, 105, 0.28) !important;
+}
+
+.scr-crew-signed-badge--waiver {
+  background: rgba(29, 78, 216, 0.1) !important;
+  color: #1d4ed8 !important;
+  border-color: rgba(29, 78, 216, 0.28) !important;
 }
 
 /* Design 3: status chips — match primary badges */

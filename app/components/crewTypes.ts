@@ -16,3 +16,12 @@ export type CrewEntry = {
 };
 
 export type CrewEntryPayload = Omit<CrewEntry, "code" | "workItems">;
+
+/** Per-crew stored signature images (data URLs) after Sign online on each PDF */
+export type CrewPdfSignatures = Record<
+  string,
+  {
+    compensationDataUrl?: string;
+    waiverDataUrl?: string;
+  }
+>;
