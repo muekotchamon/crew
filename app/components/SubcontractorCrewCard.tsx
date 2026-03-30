@@ -4,18 +4,39 @@ import type { CrewEntry, CrewWorkItem } from "./crewTypes";
 
 type Props = {
   crew: CrewEntry;
+  layout?: "d1" | "d2" | "d3";
   onAddWork: (crewId: string) => void;
   onEditWork: (crewId: string, item: CrewWorkItem) => void;
   onDeleteWork: (crewId: string, workId: string) => void;
+  /** Opens the same Subcontractor Compensation Agreement preview as Documents */
+  onOpenCompensationPreview?: () => void;
 };
+
+/** Work lines that would appear in the compensation agreement PDF */
+function crewHasAgreementLines(crew: CrewEntry): boolean {
+  return crew.workItems.some((w) => {
+    const hasService = Boolean(w.service?.trim());
+    const hasNumbers =
+      w.installCost > 0 || w.installQty > 0 || (w.qty != null && w.qty > 0);
+    return hasService && hasNumbers;
+  });
+}
 
 function formatMoney(n: number) {
   if (n === 0 || Number.isNaN(n)) return "—";
   return `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-export default function SubcontractorCrewCard({ crew, onAddWork, onEditWork, onDeleteWork }: Props) {
+export default function SubcontractorCrewCard({
+  crew,
+  layout = "d1",
+  onAddWork,
+  onEditWork,
+  onDeleteWork,
+  onOpenCompensationPreview,
+}: Props) {
   const displayName = crew.employeeName || "Unnamed subcontractor";
+  const showCompensationPdfIcon = layout === "d2" && crewHasAgreementLines(crew);
 
   return (
     <div className="scr-work-crew-card scr-card p-4 mb-3">
@@ -31,14 +52,27 @@ export default function SubcontractorCrewCard({ crew, onAddWork, onEditWork, onD
             {crew.code}
           </span>
         </div>
-        <button
-          type="button"
-          className="btn btn-outline-primary btn-sm rounded-3 fw-semibold"
-          onClick={() => onAddWork(crew.id)}
-        >
-          <i className="bi bi-plus-lg me-1" aria-hidden />
-          Add Work
-        </button>
+        <div className="d-flex align-items-center gap-2 flex-shrink-0 align-self-start">
+          {showCompensationPdfIcon && onOpenCompensationPreview ? (
+            <button
+              type="button"
+              className="scr-d2-crew-pdf-icon d-inline-flex align-items-center justify-content-center flex-shrink-0 rounded-2 border"
+              title="Preview Subcontractor Compensation Agreement (same as Documents)"
+              aria-label="Preview Subcontractor Compensation Agreement PDF"
+              onClick={() => onOpenCompensationPreview()}
+            >
+              <i className="bi bi-file-earmark-pdf" aria-hidden />
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="btn btn-outline-primary btn-sm rounded-3 fw-semibold"
+            onClick={() => onAddWork(crew.id)}
+          >
+            <i className="bi bi-plus-lg me-1" aria-hidden />
+            Add Work
+          </button>
+        </div>
       </div>
 
       <div className="table-responsive rounded-3 border">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import AddCrewModal from "./AddCrewModal";
 import AddWorkModal from "./AddWorkModal";
 import {
@@ -223,6 +223,7 @@ type CrewsProps = {
   openAddWorkModal: (crewId: string) => void;
   openEditWorkModal: (crewId: string, item: CrewWorkItem) => void;
   onDeleteWork: (crewId: string, workId: string) => void;
+  onOpenCompensationPreview?: () => void;
   layout: "d1" | "d2" | "d3";
 };
 
@@ -232,6 +233,7 @@ function CrewsSection({
   openAddWorkModal,
   openEditWorkModal,
   onDeleteWork,
+  onOpenCompensationPreview,
   layout,
 }: CrewsProps) {
   const isD1 = layout === "d1";
@@ -272,9 +274,11 @@ function CrewsSection({
           <SubcontractorCrewCard
             key={c.id}
             crew={c}
+            layout={layout}
             onAddWork={openAddWorkModal}
             onEditWork={openEditWorkModal}
             onDeleteWork={onDeleteWork}
+            onOpenCompensationPreview={onOpenCompensationPreview}
           />
         ))}
       </div>
@@ -487,6 +491,7 @@ export default function SubcontractorReport() {
   const [addWorkModalKey, setAddWorkModalKey] = useState(0);
   const [paidOrSubmit, setPaidOrSubmit] = useState<"paid" | "submit">("submit");
   const actionGroupId = useId();
+  const compensationPreviewOpenRef = useRef<(() => void) | null>(null);
 
   const workTotal = crews.reduce(
     (sum, crew) => sum + crew.workItems.reduce((s, w) => s + (Number(w.installCost) || 0), 0),
@@ -566,6 +571,7 @@ export default function SubcontractorReport() {
     openAddWorkModal,
     openEditWorkModal,
     onDeleteWork: handleDeleteWorkItem,
+    onOpenCompensationPreview: () => compensationPreviewOpenRef.current?.(),
   };
 
   return (
@@ -673,7 +679,11 @@ export default function SubcontractorReport() {
                 </div>
                 <div className="row g-4 mb-4 scr-cost-docs-row">
                   <div className="col-lg-6">
-                    <DocumentsPanel crews={crews} workTotal={workTotal} />
+                    <DocumentsPanel
+                      crews={crews}
+                      workTotal={workTotal}
+                      compensationPreviewOpenRef={compensationPreviewOpenRef}
+                    />
                   </div>
                   <div className="col-lg-6">
                     <InstallationCostSection {...costProps} />
@@ -692,7 +702,11 @@ export default function SubcontractorReport() {
                     <div className="sticky-lg-top scr-d2-sticky-stack" style={{ top: "0.75rem" }}>
                       <InstallationCostSection {...costProps} compact />
                       <div className="mt-4">
-                        <DocumentsPanel crews={crews} workTotal={workTotal} />
+                        <DocumentsPanel
+                          crews={crews}
+                          workTotal={workTotal}
+                          compensationPreviewOpenRef={compensationPreviewOpenRef}
+                        />
                       </div>
                     </div>
                   </div>
@@ -711,7 +725,11 @@ export default function SubcontractorReport() {
                     <CrewsSection {...crewsBase} layout="d3" />
                   </div>
                   <div className="col-12 col-lg-3 order-3">
-                    <DocumentsPanel crews={crews} workTotal={workTotal} />
+                    <DocumentsPanel
+                      crews={crews}
+                      workTotal={workTotal}
+                      compensationPreviewOpenRef={compensationPreviewOpenRef}
+                    />
                   </div>
                 </div>
               </>

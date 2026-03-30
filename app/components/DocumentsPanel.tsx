@@ -1,7 +1,13 @@
 "use client";
 
 import { pdf } from "@react-pdf/renderer";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type MutableRefObject,
+} from "react";
 import { buildCompensationRows } from "../lib/buildCompensationRows";
 import { scrDesignClass, useDesignVariant } from "./DesignThemeContext";
 import { DEFAULT_JOB_META } from "../lib/defaultJobMeta";
@@ -13,6 +19,8 @@ import { WaiverLienDocument } from "./pdf/WaiverLienDocument";
 type Props = {
   crews: CrewEntry[];
   workTotal: number;
+  /** Wired from parent so crew cards can open the same compensation PDF preview */
+  compensationPreviewOpenRef?: MutableRefObject<(() => void) | null>;
 };
 
 type PreviewState = {
@@ -41,7 +49,11 @@ function triggerDownload(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-export default function DocumentsPanel({ crews, workTotal }: Props) {
+export default function DocumentsPanel({
+  crews,
+  workTotal,
+  compensationPreviewOpenRef,
+}: Props) {
   const design = useDesignVariant();
   const dClass = scrDesignClass(design);
   const rows = buildCompensationRows(crews);
@@ -127,7 +139,7 @@ export default function DocumentsPanel({ crews, workTotal }: Props) {
     }
   }
 
-  async function openCompensationPreview() {
+  const openCompensationPreview = useCallback(async () => {
     if (!hasCompensationData || generating) return;
     setGenerating(true);
     try {
@@ -143,7 +155,17 @@ export default function DocumentsPanel({ crews, workTotal }: Props) {
     } finally {
       setGenerating(false);
     }
-  }
+  }, [hasCompensationData, generating, makePreviewBlob]);
+
+  useEffect(() => {
+    if (!compensationPreviewOpenRef) return;
+    compensationPreviewOpenRef.current = () => {
+      void openCompensationPreview();
+    };
+    return () => {
+      compensationPreviewOpenRef.current = null;
+    };
+  }, [compensationPreviewOpenRef, openCompensationPreview]);
 
   async function openWaiverPreview() {
     if (generating) return;
@@ -262,34 +284,6 @@ export default function DocumentsPanel({ crews, workTotal }: Props) {
         </div>
 
         <ul className="list-unstyled d-flex flex-column gap-0 mb-0">
-          <li className="d-flex align-items-start justify-content-between gap-3 py-3 border-bottom border-light">
-            <div className="d-flex align-items-start gap-3 min-w-0">
-              <span
-                className="flex-shrink-0 rounded-1 bg-secondary bg-opacity-25"
-                style={{ width: 4, minHeight: 40, marginTop: 2 }}
-                aria-hidden
-              />
-              <div className="min-w-0">
-                <div className="fw-semibold" style={{ color: "var(--scr-slate-900)" }}>
-                  Subcontractor Compensation Agreement
-                </div>
-              </div>
-            </div>
-            <div className="d-flex flex-shrink-0 gap-1">
-              <button
-                type="button"
-                className="btn btn-sm btn-outline-primary border rounded-3"
-                title="Preview PDF"
-                aria-label="Preview Subcontractor Compensation Agreement"
-                disabled={!hasCompensationData || generating}
-                onClick={() => void openCompensationPreview()}
-              >
-                <i className="bi bi-eye me-1" aria-hidden />
-                Preview
-              </button>
-            </div>
-          </li>
-
           <li className="d-flex align-items-start justify-content-between gap-3 py-3">
             <div className="d-flex align-items-start gap-3 min-w-0">
               <span

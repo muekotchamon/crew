@@ -541,6 +541,39 @@ body {
   background: rgba(148, 163, 184, 0.35);
 }
 
+/* Design 2: PDF agreement — opens same preview as Documents */
+.scr-app.scr-design-2 button.scr-d2-crew-pdf-icon {
+  width: 1.85rem;
+  height: 1.85rem;
+  padding: 0;
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--scr-emerald);
+  background: var(--scr-emerald-soft);
+  border-color: rgba(5, 150, 105, 0.28) !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.12s ease;
+}
+
+.scr-app.scr-design-2 button.scr-d2-crew-pdf-icon:hover {
+  background: rgba(5, 150, 105, 0.2);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+}
+
+.scr-app.scr-design-2 button.scr-d2-crew-pdf-icon:active {
+  transform: scale(0.96);
+}
+
+.scr-app.scr-design-2 button.scr-d2-crew-pdf-icon:focus-visible {
+  outline: 2px solid var(--scr-emerald);
+  outline-offset: 2px;
+}
+
 /* Design 3: status chips — match primary badges */
 .scr-d3-chip {
   display: inline-flex;
