@@ -519,7 +519,6 @@ type CostProps = {
   totalCost: number;
   workTotal: number;
   contractAmount: number;
-  /** Submit/Paid checkboxes; Sign = PDF signatures done (2 per crew: Compensation + Waiver) */
   crewPaidRollup: CrewPaidRollup;
   timelineEvents: PaymentTimelineEvent[];
   compact?: boolean;
@@ -594,10 +593,6 @@ function InstallationCostSection({
           </span>
         </div>
       </div>
-
-      <p className="small pt-2 mb-0" style={{ color: "var(--scr-slate-500)" }}>
-        Sign = Compensation + Waiver per crew (2 each). Submit/Paid = checkboxes on each card (independent).
-      </p>
 
       {crewTotal > 0 ? (
         <div className="scr-payment-timeline mt-3 pt-3 border-top border-light">
