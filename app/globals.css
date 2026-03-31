@@ -168,65 +168,6 @@ body {
   color: var(--scr-slate-400);
 }
 
-.scr-add-crew-btn {
-  background: var(--scr-emerald);
-  border: none;
-  color: #fff;
-  font-weight: 600;
-  padding: 0.75rem 1.75rem;
-  border-radius: var(--scr-radius-sm);
-  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.35);
-  cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
-}
-
-.scr-add-crew-btn:hover {
-  background: var(--scr-emerald-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(5, 150, 105, 0.45);
-}
-
-.scr-add-crew-btn:focus-visible {
-  outline: 2px solid var(--scr-emerald);
-  outline-offset: 3px;
-}
-
-.scr-add-crew-wrap {
-  position: relative;
-  display: inline-block;
-}
-
-.scr-add-crew-wrap::after {
-  content: "";
-  position: absolute;
-  inset: -6px;
-  border-radius: 14px;
-  border: 2px solid transparent;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.scr-add-crew-wrap:hover::after {
-  opacity: 1;
-  animation: scr-pulse-ring 1.6s ease-out infinite;
-}
-
-@keyframes scr-pulse-ring {
-  0% {
-    box-shadow: 0 0 0 0 var(--scr-emerald-ring);
-    border-color: rgba(5, 150, 105, 0.4);
-  }
-  70% {
-    box-shadow: 0 0 0 12px transparent;
-    border-color: rgba(5, 150, 105, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 transparent;
-    border-color: transparent;
-  }
-}
-
 .scr-illustration {
   max-width: 280px;
   margin: 0 auto;
@@ -251,7 +192,7 @@ body {
   }
 }
 
-/* Add Crew modal (Bootstrap 5 + custom UI) */
+/* Modals (e.g. Add Work) */
 .scr-modal-backdrop {
   z-index: 1040;
   background: rgba(15, 23, 42, 0.35);
@@ -345,19 +286,6 @@ body {
   background: #f8fafc;
 }
 
-.scr-service-select {
-  border-radius: 10px !important;
-  min-height: 42px;
-  border-color: #e2e8f0 !important;
-  color: var(--scr-slate-800);
-  font-size: 0.9375rem;
-}
-
-.scr-service-select:focus {
-  border-color: #7dd3fc !important;
-  box-shadow: 0 0 0 0.2rem rgba(125, 211, 252, 0.45) !important;
-}
-
 .scr-modal-btn-cancel {
   background: #fff;
   border: 1px solid #e2e8f0;
@@ -411,6 +339,36 @@ body {
 
 .scr-install-cost-status-row {
   border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+.scr-personnel-assign-btn:focus-visible {
+  outline: 2px solid var(--scr-emerald);
+  outline-offset: 2px;
+  border-radius: 50%;
+}
+
+/* Assign Personnel: 3 per row on tablet+; narrower screens fewer columns */
+.scr-personnel-assign-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem 1.25rem;
+  align-items: start;
+}
+
+@media (min-width: 576px) {
+  .scr-personnel-assign-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 768px) {
+  .scr-personnel-assign-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.scr-personnel-assign-item {
+  min-width: 0;
 }
 
 /* Sign / Submit / Paid activity timeline (Installation Cost card) */
@@ -786,10 +744,6 @@ body {
 
 .scr-d2-sticky-stack .mt-4 {
   margin-top: 1.25rem !important;
-}
-
-.scr-d2-crews-inline-btn {
-  flex-shrink: 0;
 }
 
 /* Personnel + crews share one card in Design 2 */

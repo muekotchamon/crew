@@ -1,17 +1,16 @@
 import type { NextConfig } from "next";
 
-/** Set in CI for GitHub project Pages (subpath under github.io). */
+/**
+ * GitHub **project** Pages URL: `https://<user>.github.io/<repo>/`
+ * Set `NEXT_BASE_PATH=/<repo>` when building for Pages (see `build:pages` & CI workflow).
+ * Leave unset for local `next dev` or hosting at domain root.
+ */
 const basePath = process.env.NEXT_BASE_PATH?.trim() || "";
-const assetPrefix = basePath
-  ? basePath.endsWith("/")
-    ? basePath
-    : `${basePath}/`
-  : undefined;
 
 const nextConfig: NextConfig = {
   output: "export",
   trailingSlash: true,
-  ...(basePath ? { basePath, assetPrefix } : {}),
+  ...(basePath ? { basePath } : {}),
 };
 
 export default nextConfig;

@@ -1,7 +1,6 @@
 "use client";
 
 import { Fragment, useMemo, useRef, useState } from "react";
-import AddCrewModal from "./AddCrewModal";
 import AddWorkModal from "./AddWorkModal";
 import {
   DesignThemeProvider,
@@ -17,7 +16,6 @@ import DocumentsPanel from "./DocumentsPanel";
 import SubcontractorCrewCard from "./SubcontractorCrewCard";
 import type {
   CrewEntry,
-  CrewEntryPayload,
   CrewPaymentFlags,
   CrewPdfSignatures,
   CrewWorkItem,
@@ -126,50 +124,112 @@ const PERSONNEL = [
     id: "1",
     name: "David Kenyon",
     detail: "Lead electrician · on-site",
+    serviceType: "Electrical",
     avatarVariant: 1 as const,
   },
   {
     id: "2",
     name: "Joshua Minter",
     detail: "Journeyman · on-site",
+    serviceType: "Electrical",
     avatarVariant: 2 as const,
   },
-];
+  {
+    id: "ks",
+    name: "Kotchamon Saingpairoa",
+    detail: "Roofing · on-site",
+    serviceType: "Installation",
+    avatarVariant: 1 as const,
+  },
+] as const;
 
-function personnelList() {
-  return PERSONNEL.map((p) => (
-    <div
-      key={p.id}
-      className="d-flex align-items-center gap-3 flex-grow-1 flex-md-grow-0"
-      style={{ minWidth: "min(100%, 260px)" }}
-    >
-      <div
-        className="flex-shrink-0 rounded-circle overflow-hidden border border-light shadow-sm"
-        style={{ width: 44, height: 44 }}
-        aria-hidden
-      >
-        <PersonnelAvatarMock variant={p.avatarVariant} />
-      </div>
-      <div className="min-w-0">
-        <div className="d-flex align-items-center gap-2">
-          <span className="fw-semibold text-truncate" style={{ color: "var(--scr-slate-900)" }}>
-            {p.name}
-          </span>
-          <i
-            className="bi bi-check-circle-fill flex-shrink-0"
-            style={{ color: "var(--scr-emerald)", fontSize: "1rem" }}
-            aria-label="Assigned"
-          />
-        </div>
-        <div className="small text-truncate" style={{ color: "var(--scr-slate-600)" }}>
-          {p.detail}
-        </div>
-      </div>
-    </div>
-  ));
+function personnelCrewId(personnelId: string) {
+  return `personnel-${personnelId}`;
 }
 
-function AssignPersonnelSection({ layout }: { layout: "d1" | "d3" }) {
+function sortCrewsForDisplay(crewList: CrewEntry[]): CrewEntry[] {
+  const personnelKeys = new Set(PERSONNEL.map((p) => personnelCrewId(p.id)));
+  const orderedPersonnel = PERSONNEL.map((p) => crewList.find((c) => c.id === personnelCrewId(p.id))).filter(
+    (c): c is CrewEntry => Boolean(c)
+  );
+  const rest = crewList.filter((c) => !personnelKeys.has(c.id));
+  return [...orderedPersonnel, ...rest];
+}
+
+/** Default line for “Build” on a crew card — user can edit before saving */
+function buildPresetWorkItemForCrew(crew: CrewEntry): CrewWorkItem {
+  const name = crew.employeeName || "Subcontractor";
+  const installQty = 500;
+  const qty = 2;
+  return {
+    id: "preset",
+    description: `${crew.serviceType} — ${name}`,
+    installQty,
+    qty,
+    installCost: installQty * qty,
+  };
+}
+
+/** Grid: up to 3 people per row; row 2+ when more are added to PERSONNEL. */
+function PersonnelAssignRows({
+  personnelOnCrew,
+  onPersonnelToggle,
+}: {
+  personnelOnCrew: Record<string, boolean>;
+  onPersonnelToggle: (personnelId: string, checked: boolean) => void;
+}) {
+  return (
+    <div className="scr-personnel-assign-row w-100">
+      {PERSONNEL.map((p) => {
+        const on = Boolean(personnelOnCrew[p.id]);
+        return (
+          <div key={p.id} className="d-flex align-items-center gap-3 scr-personnel-assign-item min-w-0">
+            <div
+              className="flex-shrink-0 rounded-circle overflow-hidden border border-light shadow-sm"
+              style={{ width: 44, height: 44 }}
+              aria-hidden
+            >
+              <PersonnelAvatarMock variant={p.avatarVariant} />
+            </div>
+            <div className="min-w-0 flex-grow-1">
+              <div className="d-flex align-items-center gap-2 flex-nowrap">
+                <span className="fw-semibold text-truncate" style={{ color: "var(--scr-slate-900)" }}>
+                  {p.name}
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-link p-0 border-0 shadow-none text-decoration-none flex-shrink-0 lh-1 scr-personnel-assign-btn"
+                  onClick={() => onPersonnelToggle(p.id, !on)}
+                  aria-pressed={on}
+                  aria-label={on ? `Remove ${p.name} from report` : `Add ${p.name} to report`}
+                >
+                  <i
+                    className={`bi flex-shrink-0 ${on ? "bi-check-circle-fill" : "bi-check-circle"}`}
+                    style={{ color: on ? "var(--scr-emerald)" : "var(--scr-slate-400)", fontSize: "1rem" }}
+                    aria-hidden
+                  />
+                </button>
+              </div>
+              <div className="small text-truncate" style={{ color: "var(--scr-slate-600)" }}>
+                {p.detail}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function AssignPersonnelSection({
+  layout,
+  personnelOnCrew,
+  onPersonnelToggle,
+}: {
+  layout: "d1" | "d3";
+  personnelOnCrew: Record<string, boolean>;
+  onPersonnelToggle: (personnelId: string, checked: boolean) => void;
+}) {
   if (layout === "d3") {
     return (
       <section className="scr-card scr-d3-personnel-rail p-3 p-lg-4 mb-4" aria-labelledby="scr-personnel-d3">
@@ -182,8 +242,8 @@ function AssignPersonnelSection({ layout }: { layout: "d1" | "d3" }) {
               On-site for this compensation package.
             </p>
           </div>
-          <div className="d-flex flex-column flex-sm-row flex-wrap gap-3 align-items-stretch">
-            {personnelList()}
+          <div className="min-w-0 w-100 d-flex justify-content-lg-end">
+            <PersonnelAssignRows personnelOnCrew={personnelOnCrew} onPersonnelToggle={onPersonnelToggle} />
           </div>
         </div>
       </section>
@@ -219,9 +279,9 @@ function AssignPersonnelSection({ layout }: { layout: "d1" | "d3" }) {
               </span>
             </div>
             <p className="small mb-3 mb-lg-4" style={{ color: "var(--scr-slate-500)" }}>
-              Assigned personnel for this report.
+              Assigned personnel for this report. Use the circle next to each name to add or remove their crew card.
             </p>
-            <div className="d-flex flex-column flex-md-row flex-wrap gap-3">{personnelList()}</div>
+            <PersonnelAssignRows personnelOnCrew={personnelOnCrew} onPersonnelToggle={onPersonnelToggle} />
           </div>
         </div>
       </div>
@@ -231,8 +291,11 @@ function AssignPersonnelSection({ layout }: { layout: "d1" | "d3" }) {
 
 type CrewsProps = {
   crews: CrewEntry[];
-  openAddCrewModal: () => void;
+  displayCrews: CrewEntry[];
+  personnelOnCrew: Record<string, boolean>;
+  onPersonnelToggle: (personnelId: string, checked: boolean) => void;
   openAddWorkModal: (crewId: string) => void;
+  openBuildWorkModal: (crewId: string) => void;
   openEditWorkModal: (crewId: string, item: CrewWorkItem) => void;
   onDeleteWork: (crewId: string, workId: string) => void;
   onOpenCompensationPreview?: (crewId: string) => void;
@@ -245,8 +308,11 @@ type CrewsProps = {
 
 function CrewsSection({
   crews,
-  openAddCrewModal,
+  displayCrews,
+  personnelOnCrew,
+  onPersonnelToggle,
   openAddWorkModal,
+  openBuildWorkModal,
   openEditWorkModal,
   onDeleteWork,
   onOpenCompensationPreview,
@@ -257,28 +323,20 @@ function CrewsSection({
   layout,
 }: CrewsProps) {
   const isD1 = layout === "d1";
-  const emptyShowsBodyAdd = layout === "d1";
+  const personnelDone = PERSONNEL.some((p) => personnelOnCrew[p.id]);
 
   const crewsEmpty = (
     <>
       <div className={isD1 ? "py-3 py-md-4" : "py-2 py-md-3"}>
         <CrewPlaceholderIllustration />
-        <p className="small mt-3 mb-0 mx-auto text-start" style={{ maxWidth: 400, color: "var(--scr-slate-500)" }}>
-          No crew created yet. Add a crew to continue your compensation report.
+        <p className="small mt-3 mb-0 mx-auto text-start" style={{ maxWidth: 420, color: "var(--scr-slate-500)" }}>
+          No crews yet. Use the circle next to each name under Assign Personnel to add their crew card.
         </p>
       </div>
-      {emptyShowsBodyAdd ? (
-        <div className="scr-add-crew-wrap mt-2">
-          <button type="button" className="scr-add-crew-btn" onClick={openAddCrewModal}>
-            <i className="bi bi-plus-lg me-2" aria-hidden />
-            Add Crew
-          </button>
-        </div>
-      ) : null}
       <p className="small mt-3 mb-0" style={{ color: "var(--scr-slate-500)" }}>
-        {emptyShowsBodyAdd
-          ? "You need to add at least one crew to proceed."
-          : "Use Add Crew above to create your first crew."}
+        {isD1
+          ? "Check the circle next to a name in Assign Personnel above."
+          : "Use the Personnel section above to include people on this report."}
       </p>
     </>
   );
@@ -290,7 +348,7 @@ function CrewsSection({
         {crews.length} crew{crews.length > 1 ? "s" : ""} on this report
       </p>
       <div className="mb-4">
-        {crews.map((c) => {
+        {displayCrews.map((c) => {
           const sig = crewPdfSignatures[c.id];
           const flags = crewPaymentFlags[c.id] ?? { submit: false, paid: false };
           return (
@@ -299,6 +357,7 @@ function CrewsSection({
               crew={c}
               layout={layout}
               onAddWork={openAddWorkModal}
+              onBuildWork={openBuildWorkModal}
               onEditWork={openEditWorkModal}
               onDeleteWork={onDeleteWork}
               onOpenCompensationPreview={onOpenCompensationPreview}
@@ -331,37 +390,32 @@ function CrewsSection({
                 Personnel
               </span>
               <span
-                className="badge rounded-0 fw-semibold px-2 py-1"
-                style={{
-                  background: "var(--scr-emerald-soft)",
-                  color: "var(--scr-emerald)",
-                  fontSize: "0.65rem",
-                }}
+                className={`badge rounded-0 fw-semibold px-2 py-1 ${personnelDone ? "" : "text-bg-light border"}`}
+                style={
+                  personnelDone
+                    ? {
+                        background: "var(--scr-emerald-soft)",
+                        color: "var(--scr-emerald)",
+                        fontSize: "0.65rem",
+                      }
+                    : { fontSize: "0.65rem" }
+                }
               >
-                OK
+                {personnelDone ? "OK" : "—"}
               </span>
             </div>
-            <div
-              className="d-flex flex-column flex-sm-row flex-wrap gap-3 flex-grow-1 justify-content-md-end"
-              id="scr-personnel-d2"
-            >
-              {personnelList()}
+            <div className="flex-grow-1 min-w-0 d-flex justify-content-md-end align-items-start" id="scr-personnel-d2">
+              <PersonnelAssignRows personnelOnCrew={personnelOnCrew} onPersonnelToggle={onPersonnelToggle} />
             </div>
           </div>
         </div>
-        <div className="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
-          <div>
-            <h2 className="h6 fw-bold mb-1" style={{ color: "var(--scr-slate-900)" }}>
-              Crews &amp; work lines
-            </h2>
-            <p className="small mb-0" style={{ color: "var(--scr-slate-500)" }}>
-              Primary workspace — add crews, then line items.
-            </p>
-          </div>
-          <button type="button" className="scr-add-crew-btn scr-d2-crews-inline-btn" onClick={openAddCrewModal}>
-            <i className="bi bi-plus-lg me-2" aria-hidden />
-            Add Crew
-          </button>
+        <div className="mb-3">
+          <h2 className="h6 fw-bold mb-1" style={{ color: "var(--scr-slate-900)" }}>
+            Crews &amp; work lines
+          </h2>
+          <p className="small mb-0" style={{ color: "var(--scr-slate-500)" }}>
+            Add work lines on each crew card after selecting people in Personnel.
+          </p>
         </div>
         <div className="flex-grow-1">{crewsMain}</div>
       </section>
@@ -371,21 +425,13 @@ function CrewsSection({
   if (layout === "d3") {
     return (
       <section className="scr-card scr-card-step-focus scr-d3-crews-hero p-4 p-lg-5 border border-2 h-100 d-flex flex-column">
-        <div className="d-flex flex-wrap align-items-end justify-content-between gap-3 mb-3">
-          <div>
-            <p className="small text-uppercase fw-semibold mb-1 scr-d3-crews-kicker" style={{ letterSpacing: "0.08em" }}>
-              Workspace
-            </p>
-            <h2 className="h4 fw-bold mb-0" style={{ color: "var(--scr-slate-900)" }}>
-              Crews
-            </h2>
-          </div>
-          <div className="scr-add-crew-wrap">
-            <button type="button" className="scr-add-crew-btn" onClick={openAddCrewModal}>
-              <i className="bi bi-plus-lg me-2" aria-hidden />
-              Add Crew
-            </button>
-          </div>
+        <div className="mb-3">
+          <p className="small text-uppercase fw-semibold mb-1 scr-d3-crews-kicker" style={{ letterSpacing: "0.08em" }}>
+            Workspace
+          </p>
+          <h2 className="h4 fw-bold mb-0" style={{ color: "var(--scr-slate-900)" }}>
+            Crews
+          </h2>
         </div>
         <div className="flex-grow-1">{crewsMain}</div>
       </section>
@@ -408,23 +454,13 @@ function CrewsSection({
           </div>
         </div>
         <div className="flex-grow-1 text-center ms-lg-4">
-          <div className="d-flex flex-wrap align-items-end justify-content-between gap-3 text-start mb-3">
-            <div>
-              <h2 className="h6 fw-bold mb-1" style={{ color: "var(--scr-slate-900)" }}>
-                Add Crews
-              </h2>
-              <p className="small mb-0" style={{ color: "var(--scr-slate-500)" }}>
-                Current step — organize workers into crews for cost allocation.
-              </p>
-            </div>
-            {crews.length > 0 ? (
-              <div className="scr-add-crew-wrap flex-shrink-0">
-                <button type="button" className="scr-add-crew-btn" onClick={openAddCrewModal}>
-                  <i className="bi bi-plus-lg me-2" aria-hidden />
-                  Add Crew
-                </button>
-              </div>
-            ) : null}
+          <div className="text-start mb-3">
+            <h2 className="h6 fw-bold mb-1" style={{ color: "var(--scr-slate-900)" }}>
+              Crews &amp; work lines
+            </h2>
+            <p className="small mb-0" style={{ color: "var(--scr-slate-500)" }}>
+              Crews come from Assign Personnel — use Add Work on each card for line items.
+            </p>
           </div>
           {crewsMain}
         </div>
@@ -451,8 +487,7 @@ type CrewPaidRollup = {
 };
 
 /** Design 2 stepper: done = green; current = next incomplete step after data / signatures / flags. */
-function getDesign2WorkflowState(crewTotal: number, workTotal: number, rollup: CrewPaidRollup) {
-  const personnelDone = true;
+function getDesign2WorkflowState(personnelDone: boolean, crewTotal: number, workTotal: number, rollup: CrewPaidRollup) {
   const crewsDone = crewTotal > 0;
   const documentsDone = workTotal > 0;
   const signDone = rollup.signMax > 0 && rollup.sign === rollup.signMax;
@@ -611,14 +646,62 @@ function InstallationCostSection({
 export default function SubcontractorReport() {
   const [design, setDesign] = useState<DesignVariant>(1);
   const [crews, setCrews] = useState<CrewEntry[]>([]);
-  const [addCrewOpen, setAddCrewOpen] = useState(false);
-  const [addCrewModalKey, setAddCrewModalKey] = useState(0);
-  const [workModal, setWorkModal] = useState<{ crewId: string; editItem: CrewWorkItem | null } | null>(null);
+  const [workModal, setWorkModal] = useState<{
+    crewId: string;
+    editItem: CrewWorkItem | null;
+    presetForNew?: CrewWorkItem | null;
+  } | null>(null);
   const [addWorkModalKey, setAddWorkModalKey] = useState(0);
   const [crewPaymentFlags, setCrewPaymentFlags] = useState<Record<string, CrewPaymentFlags>>({});
   const compensationPreviewOpenRef = useRef<((crewId: string) => void) | null>(null);
   const waiverPreviewOpenRef = useRef<((crewId: string) => void) | null>(null);
   const [crewPdfSignatures, setCrewPdfSignatures] = useState<CrewPdfSignatures>({});
+  const [personnelOnCrew, setPersonnelOnCrew] = useState<Record<string, boolean>>({});
+
+  const personnelDone = useMemo(() => PERSONNEL.some((p) => personnelOnCrew[p.id]), [personnelOnCrew]);
+
+  const displayCrews = useMemo(() => sortCrewsForDisplay(crews), [crews]);
+
+  function handlePersonnelToggle(personnelId: string, checked: boolean) {
+    const crewId = personnelCrewId(personnelId);
+    const person = PERSONNEL.find((p) => p.id === personnelId);
+    if (!person) return;
+
+    setPersonnelOnCrew((prev) => ({ ...prev, [personnelId]: checked }));
+
+    if (checked) {
+      setCrews((prev) => {
+        if (prev.some((c) => c.id === crewId)) return prev;
+        return [
+          ...prev,
+          {
+            id: crewId,
+            employeeName: person.name,
+            serviceType: person.serviceType,
+            code: `SCR${prev.length + 1}`,
+            workItems: [],
+          },
+        ];
+      });
+      setCrewPaymentFlags((prev) => ({
+        ...prev,
+        [crewId]: prev[crewId] ?? { submit: false, paid: false },
+      }));
+    } else {
+      setWorkModal((cur) => (cur?.crewId === crewId ? null : cur));
+      setCrews((prev) => prev.filter((c) => c.id !== crewId));
+      setCrewPaymentFlags((prev) => {
+        const next = { ...prev };
+        delete next[crewId];
+        return next;
+      });
+      setCrewPdfSignatures((prev) => {
+        const next = { ...prev };
+        delete next[crewId];
+        return next;
+      });
+    }
+  }
 
   function handleCrewPdfSigned(crewId: string, kind: "compensation" | "waiver", dataUrl: string) {
     const now = new Date().toISOString();
@@ -661,29 +744,14 @@ export default function SubcontractorReport() {
   }, [crews, crewPaymentFlags, crewPdfSignatures]);
 
   const d2Workflow = useMemo(
-    () => getDesign2WorkflowState(crews.length, workTotal, crewPaidRollup),
-    [crews.length, workTotal, crewPaidRollup]
+    () => getDesign2WorkflowState(personnelDone, crews.length, workTotal, crewPaidRollup),
+    [personnelDone, crews.length, workTotal, crewPaidRollup]
   );
 
   const paymentTimeline = useMemo(
     () => buildPaymentTimeline(crews, crewPaymentFlags, crewPdfSignatures),
     [crews, crewPaymentFlags, crewPdfSignatures]
   );
-
-  function handleAddCrew(payload: CrewEntryPayload) {
-    setCrewPaymentFlags((prev) => ({
-      ...prev,
-      [payload.id]: { submit: false, paid: false },
-    }));
-    setCrews((c) => [
-      ...c,
-      {
-        ...payload,
-        code: `SCR${c.length + 1}`,
-        workItems: [],
-      },
-    ]);
-  }
 
   function setCrewPaymentFlag(crewId: string, key: PaymentCheckboxKey, checked: boolean) {
     setCrewPaymentFlags((prev) => {
@@ -730,14 +798,16 @@ export default function SubcontractorReport() {
 
   const workModalCrew = workModal ? crews.find((c) => c.id === workModal.crewId) : undefined;
 
-  function openAddCrewModal() {
-    setAddCrewModalKey((k) => k + 1);
-    setAddCrewOpen(true);
-  }
-
   function openAddWorkModal(crewId: string) {
     setAddWorkModalKey((k) => k + 1);
     setWorkModal({ crewId, editItem: null });
+  }
+
+  function openBuildWorkModal(crewId: string) {
+    const crew = crews.find((c) => c.id === crewId);
+    if (!crew) return;
+    setAddWorkModalKey((k) => k + 1);
+    setWorkModal({ crewId, editItem: null, presetForNew: buildPresetWorkItemForCrew(crew) });
   }
 
   function openEditWorkModal(crewId: string, item: CrewWorkItem) {
@@ -757,8 +827,11 @@ export default function SubcontractorReport() {
 
   const crewsBase = {
     crews,
-    openAddCrewModal,
+    displayCrews,
+    personnelOnCrew,
+    onPersonnelToggle: handlePersonnelToggle,
     openAddWorkModal,
+    openBuildWorkModal,
     openEditWorkModal,
     onDeleteWork: handleDeleteWorkItem,
     onOpenCompensationPreview: (crewId: string) => compensationPreviewOpenRef.current?.(crewId),
@@ -771,20 +844,15 @@ export default function SubcontractorReport() {
   return (
     <DesignThemeProvider value={design}>
       <div className={`min-vh-100 py-4 py-lg-5 scr-app ${dClass}`}>
-        <AddCrewModal
-          key={addCrewModalKey}
-          show={addCrewOpen}
-          onClose={() => setAddCrewOpen(false)}
-          onAdd={handleAddCrew}
-        />
         {workModal && workModalCrew ? (
           <AddWorkModal
-            key={`${workModal.crewId}-${workModal.editItem?.id ?? "new"}-${addWorkModalKey}`}
+            key={`${workModal.crewId}-${workModal.editItem?.id ?? "new"}-${addWorkModalKey}-${workModal.presetForNew ? "b" : "a"}`}
             show
             onClose={() => setWorkModal(null)}
             subcontractorName={workModalCrew.employeeName || "Subcontractor"}
             tradeBadge={workModalCrew.serviceType}
             initialItem={workModal.editItem}
+            presetForNew={workModal.editItem ? null : workModal.presetForNew ?? null}
             onSubmit={(item) => handleSaveWorkItem(workModal.crewId, item)}
           />
         ) : null}
@@ -832,10 +900,6 @@ export default function SubcontractorReport() {
                 </div>
               </div>
               <div className="d-flex flex-wrap align-items-center gap-2 scr-btn-group-premium">
-                <button type="button" className="btn d-inline-flex align-items-center gap-2">
-                  <i className="bi bi-hammer" aria-hidden />
-                  Build
-                </button>
                 <button type="button" className="btn btn-primary-like d-inline-flex align-items-center gap-2">
                   <i className="bi bi-box-arrow-up" aria-hidden />
                   Export
@@ -867,7 +931,7 @@ export default function SubcontractorReport() {
                 <div className="position-relative mb-4 scr-workflow-region">
                   <div className="scr-workflow-rail d-none d-lg-block" aria-hidden />
                   <div className="d-flex flex-column gap-4 ps-lg-5">
-                    <AssignPersonnelSection layout="d1" />
+                    <AssignPersonnelSection layout="d1" personnelOnCrew={personnelOnCrew} onPersonnelToggle={handlePersonnelToggle} />
                     <CrewsSection {...crewsBase} layout="d1" />
                   </div>
                 </div>
@@ -896,7 +960,7 @@ export default function SubcontractorReport() {
 
             {design === 3 ? (
               <>
-                <AssignPersonnelSection layout="d3" />
+                <AssignPersonnelSection layout="d3" personnelOnCrew={personnelOnCrew} onPersonnelToggle={handlePersonnelToggle} />
                 <div className="row g-4 mb-4 scr-d3-triple">
                   <div className="col-12 col-lg-3 order-2 order-lg-1">
                     <InstallationCostSection {...costProps} compact />

@@ -6,6 +6,8 @@ type Props = {
   crew: CrewEntry;
   layout?: "d1" | "d2" | "d3";
   onAddWork: (crewId: string) => void;
+  /** Opens Add Work with crew-based defaults filled in */
+  onBuildWork: (crewId: string) => void;
   onEditWork: (crewId: string, item: CrewWorkItem) => void;
   onDeleteWork: (crewId: string, workId: string) => void;
   /** Opens this crew’s Subcontractor Compensation Agreement PDF preview */
@@ -21,10 +23,10 @@ type Props = {
 /** Work lines that would appear in the compensation agreement PDF */
 function crewHasAgreementLines(crew: CrewEntry): boolean {
   return crew.workItems.some((w) => {
-    const hasService = Boolean(w.service?.trim());
+    const hasDescription = Boolean(w.description?.trim());
     const hasNumbers =
       w.installCost > 0 || w.installQty > 0 || (w.qty != null && w.qty > 0);
-    return hasService && hasNumbers;
+    return hasDescription && hasNumbers;
   });
 }
 
@@ -37,6 +39,7 @@ export default function SubcontractorCrewCard({
   crew,
   layout = "d1",
   onAddWork,
+  onBuildWork,
   onEditWork,
   onDeleteWork,
   onOpenCompensationPreview,
@@ -99,6 +102,16 @@ export default function SubcontractorCrewCard({
           ) : null}
           <button
             type="button"
+            className="btn d-inline-flex align-items-center gap-1 btn-outline-secondary btn-sm rounded-3 fw-semibold"
+            title="Fill a work line from this crew’s trade and name"
+            aria-label={`Build prefilled work line for ${displayName}`}
+            onClick={() => onBuildWork(crew.id)}
+          >
+            <i className="bi bi-hammer" aria-hidden />
+            Build
+          </button>
+          <button
+            type="button"
             className="btn btn-outline-primary btn-sm rounded-3 fw-semibold"
             onClick={() => onAddWork(crew.id)}
           >
@@ -136,9 +149,8 @@ export default function SubcontractorCrewCard({
           <thead>
             <tr>
               <th scope="col" className="ps-3">
-                Service
+                Description
               </th>
-              <th scope="col">Description</th>
               <th scope="col" className="text-center">
                 Cost
               </th>
@@ -154,17 +166,18 @@ export default function SubcontractorCrewCard({
           <tbody>
             {crew.workItems.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center text-secondary small py-4">
+                <td colSpan={5} className="text-center text-secondary small py-4">
                   No work items yet. Use &quot;Add Work&quot; to add a line.
                 </td>
               </tr>
             ) : (
-              crew.workItems.map((w) => (
+              crew.workItems.map((w) => {
+                const lineLabel = w.description?.trim() || "Work line";
+                return (
                 <tr key={w.id}>
                   <td className="ps-3 fw-medium" style={{ color: "var(--scr-slate-900)" }}>
-                    {w.service}
+                    {w.description?.trim() || "—"}
                   </td>
-                  <td className="text-secondary">{w.description || "—"}</td>
                   <td className="text-center">{w.installQty}</td>
                   <td className="text-center">{w.qty ?? ""}</td>
                   <td className="fw-medium">{formatMoney(w.installCost)}</td>
@@ -174,7 +187,7 @@ export default function SubcontractorCrewCard({
                         type="button"
                         className="btn btn-link text-primary p-1 border-0"
                         title="Edit work item"
-                        aria-label={`Edit ${w.service}`}
+                        aria-label={`Edit ${lineLabel}`}
                         onClick={() => onEditWork(crew.id, w)}
                       >
                         <i className="bi bi-pencil-square" />
@@ -183,7 +196,7 @@ export default function SubcontractorCrewCard({
                         type="button"
                         className="btn btn-link text-danger p-1 border-0"
                         title="Remove work item"
-                        aria-label={`Remove ${w.service}`}
+                        aria-label={`Remove ${lineLabel}`}
                         onClick={() => onDeleteWork(crew.id, w.id)}
                       >
                         <i className="bi bi-trash3" />
@@ -191,7 +204,8 @@ export default function SubcontractorCrewCard({
                     </div>
                   </td>
                 </tr>
-              ))
+              );
+              })
             )}
           </tbody>
         </table>

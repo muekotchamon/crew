@@ -1,6 +1,5 @@
 export type CrewWorkItem = {
   id: string;
-  service: string;
   description: string;
   installQty: number;
   qty: number | null;
@@ -14,8 +13,6 @@ export type CrewEntry = {
   code: string;
   workItems: CrewWorkItem[];
 };
-
-export type CrewEntryPayload = Omit<CrewEntry, "code" | "workItems">;
 
 /** Independent checkboxes on each crew card (both may be checked) */
 export type CrewPaymentFlags = {

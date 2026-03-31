@@ -11,7 +11,7 @@ function rowFromWorkItem(w: CrewEntry["workItems"][number]): CompensationTableRo
   const qtyDisplay =
     w.qty != null && w.qty > 0 ? w.qty : w.installQty > 0 ? w.installQty : 1;
   const costPerQty = qtyDisplay > 0 ? w.installCost / qtyDisplay : w.installCost;
-  const product = [w.service, w.description].filter(Boolean).join(" — ") || "—";
+  const product = w.description?.trim() || "—";
   return {
     product,
     costPerQty,

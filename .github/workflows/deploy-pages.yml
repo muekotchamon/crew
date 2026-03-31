@@ -1,4 +1,7 @@
-name: Deploy to GitHub Pages
+# Build static export and deploy to GitHub Pages (project site: /<repo>/).
+# Repo → Settings → Pages → Build: GitHub Actions, Branch: (n/a — workflow deploys).
+
+name: Deploy GitHub Pages
 
 on:
   push:
@@ -12,7 +15,7 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -25,16 +28,14 @@ jobs:
           node-version: "20"
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - run: npm ci
 
-      - name: Build static export
-        env:
-          NEXT_BASE_PATH: /crew
+      - name: Static export (basePath = repo name)
         run: npm run build
+        env:
+          NEXT_BASE_PATH: /${{ github.event.repository.name }}
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v3
         with:
           path: out
 
@@ -45,6 +46,5 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
+      - id: deployment
         uses: actions/deploy-pages@v4

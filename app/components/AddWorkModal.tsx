@@ -1,25 +1,18 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useId, useState, type FormEvent } from "react";
 import { scrDesignClass, useDesignVariant } from "./DesignThemeContext";
 import type { CrewWorkItem } from "./crewTypes";
-
-const WORK_SERVICES = [
-  "Cleaning",
-  "Electrical",
-  "HVAC",
-  "Plumbing",
-  "Roofing",
-  "General labor",
-  "Inspection",
-];
 
 type Props = {
   show: boolean;
   onClose: () => void;
   subcontractorName: string;
   tradeBadge: string;
+  /** Editing an existing line */
   initialItem: CrewWorkItem | null;
+  /** When adding, seed the form (title stays “Add Work”) */
+  presetForNew?: CrewWorkItem | null;
   onSubmit: (item: CrewWorkItem) => void;
 };
 
@@ -29,24 +22,18 @@ export default function AddWorkModal({
   subcontractorName,
   tradeBadge,
   initialItem,
+  presetForNew = null,
   onSubmit,
 }: Props) {
   const design = useDesignVariant();
   const dClass = scrDesignClass(design);
   const titleId = useId();
-  const [service, setService] = useState(() => initialItem?.service ?? "");
-  const [description, setDescription] = useState(() => initialItem?.description ?? "");
-  const [installQty, setInstallQty] = useState(() => initialItem?.installQty ?? 0);
-  const [qty, setQty] = useState(() => (initialItem?.qty != null ? initialItem.qty : 0));
+  const seed = initialItem ?? presetForNew;
+  const [description, setDescription] = useState(() => seed?.description ?? "");
+  const [installQty, setInstallQty] = useState(() => seed?.installQty ?? 0);
+  const [qty, setQty] = useState(() => (seed?.qty != null ? seed.qty : 0));
 
   const installCost = installQty * qty;
-
-  const selectServices = useMemo(() => {
-    if (service && !WORK_SERVICES.includes(service)) {
-      return [service, ...WORK_SERVICES];
-    }
-    return WORK_SERVICES;
-  }, [service]);
 
   useEffect(() => {
     if (!show) return;
@@ -62,7 +49,8 @@ export default function AddWorkModal({
     };
   }, [show, onClose]);
 
-  const canSubmit = service.length > 0;
+  const canSubmit =
+    description.trim().length > 0 || (installQty > 0 && qty > 0);
   const isEdit = initialItem != null;
 
   function handleSubmit(e: FormEvent) {
@@ -70,7 +58,6 @@ export default function AddWorkModal({
     if (!canSubmit) return;
     onSubmit({
       id: initialItem?.id ?? `work-${Date.now()}`,
-      service,
       description: description.trim(),
       installQty,
       qty: qty > 0 ? qty : null,
@@ -103,29 +90,6 @@ export default function AddWorkModal({
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body px-4 pt-3 pb-2">
-                <div className="mb-4">
-                  <label className="form-label small fw-semibold mb-2" htmlFor="add-work-service" style={{ color: "var(--scr-slate-800)" }}>
-                    Service
-                    <span className="text-danger ms-1" aria-hidden>
-                      *
-                    </span>
-                  </label>
-                  <select
-                    id="add-work-service"
-                    className="form-select scr-service-select"
-                    value={service}
-                    onChange={(ev) => setService(ev.target.value)}
-                    aria-required="true"
-                  >
-                    <option value="">Select service...</option>
-                    {selectServices.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
                 <div className="mb-4">
                   <label className="form-label small fw-semibold mb-2" htmlFor="add-work-desc" style={{ color: "var(--scr-slate-800)" }}>
                     Description
