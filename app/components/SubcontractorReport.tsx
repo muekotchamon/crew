@@ -8,6 +8,11 @@ import {
   type DesignVariant,
   scrDesignClass,
 } from "./DesignThemeContext";
+import {
+  buildPaymentTimeline,
+  formatTimelineDateTime,
+  type PaymentTimelineEvent,
+} from "../lib/buildPaymentTimeline";
 import DocumentsPanel from "./DocumentsPanel";
 import SubcontractorCrewCard from "./SubcontractorCrewCard";
 import type {
@@ -16,6 +21,7 @@ import type {
   CrewPaymentFlags,
   CrewPdfSignatures,
   CrewWorkItem,
+  PaymentCheckboxKey,
 } from "./crewTypes";
 
 function CrewPlaceholderIllustration() {
@@ -233,7 +239,7 @@ type CrewsProps = {
   onOpenWaiverPreview?: (crewId: string) => void;
   crewPdfSignatures: CrewPdfSignatures;
   crewPaymentFlags: Record<string, CrewPaymentFlags>;
-  setCrewPaymentFlag: (crewId: string, key: keyof CrewPaymentFlags, checked: boolean) => void;
+  setCrewPaymentFlag: (crewId: string, key: PaymentCheckboxKey, checked: boolean) => void;
   layout: "d1" | "d2" | "d3";
 };
 
@@ -480,6 +486,7 @@ type CostProps = {
   contractAmount: number;
   /** Submit/Paid checkboxes; Sign = PDF signatures done (2 per crew: Compensation + Waiver) */
   crewPaidRollup: CrewPaidRollup;
+  timelineEvents: PaymentTimelineEvent[];
   compact?: boolean;
 };
 
@@ -488,6 +495,7 @@ function InstallationCostSection({
   workTotal,
   contractAmount,
   crewPaidRollup,
+  timelineEvents,
   compact,
 }: CostProps) {
   const { total: crewTotal, submit: submitCrews, paid: paidCrews, sign: signDone, signMax: signTotal } = crewPaidRollup;
@@ -555,6 +563,47 @@ function InstallationCostSection({
       <p className="small pt-2 mb-0" style={{ color: "var(--scr-slate-500)" }}>
         Sign = Compensation + Waiver per crew (2 each). Submit/Paid = checkboxes on each card (independent).
       </p>
+
+      {crewTotal > 0 ? (
+        <div className="scr-payment-timeline mt-3 pt-3 border-top border-light">
+          <h3
+            className="small fw-bold text-uppercase mb-2"
+            style={{ color: "var(--scr-slate-500)", letterSpacing: "0.06em", fontSize: "0.65rem" }}
+          >
+            Timeline
+          </h3>
+          {timelineEvents.length > 0 ? (
+            <ul className="list-unstyled mb-0 scr-payment-timeline-list">
+              {timelineEvents.map((ev) => (
+                <li key={ev.id} className="scr-payment-timeline-item">
+                  <span className={`scr-payment-timeline-dot scr-payment-timeline-dot--${ev.kind}`} aria-hidden />
+                  <div className="min-w-0 flex-grow-1 pb-2">
+                    <div className="d-flex flex-wrap align-items-baseline gap-x-2 gap-y-0">
+                      <span className={`small fw-semibold scr-payment-timeline-title scr-payment-timeline-title--${ev.kind}`}>
+                        {ev.title}
+                      </span>
+                    </div>
+                    <div className="small text-truncate" style={{ color: "var(--scr-slate-600)" }}>
+                      {ev.crewLabel}
+                    </div>
+                    <time
+                      dateTime={ev.at}
+                      className="small scr-tabular-nums d-block mt-1"
+                      style={{ color: "var(--scr-slate-500)" }}
+                    >
+                      {formatTimelineDateTime(ev.at)}
+                    </time>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="small mb-0" style={{ color: "var(--scr-slate-500)" }}>
+              No Sign / Submit / Paid timestamps yet — sign PDFs or tick checkboxes to record times.
+            </p>
+          )}
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -572,15 +621,23 @@ export default function SubcontractorReport() {
   const [crewPdfSignatures, setCrewPdfSignatures] = useState<CrewPdfSignatures>({});
 
   function handleCrewPdfSigned(crewId: string, kind: "compensation" | "waiver", dataUrl: string) {
-    setCrewPdfSignatures((prev) => ({
-      ...prev,
-      [crewId]: {
-        ...prev[crewId],
-        ...(kind === "compensation"
-          ? { compensationDataUrl: dataUrl }
-          : { waiverDataUrl: dataUrl }),
-      },
-    }));
+    const now = new Date().toISOString();
+    setCrewPdfSignatures((prev) => {
+      const prevEntry = prev[crewId] ?? {};
+      const next =
+        kind === "compensation"
+          ? {
+              ...prevEntry,
+              compensationDataUrl: dataUrl,
+              compensationSignedAt: now,
+            }
+          : {
+              ...prevEntry,
+              waiverDataUrl: dataUrl,
+              waiverSignedAt: now,
+            };
+      return { ...prev, [crewId]: next };
+    });
   }
 
   const workTotal = crews.reduce(
@@ -608,6 +665,11 @@ export default function SubcontractorReport() {
     [crews.length, workTotal, crewPaidRollup]
   );
 
+  const paymentTimeline = useMemo(
+    () => buildPaymentTimeline(crews, crewPaymentFlags, crewPdfSignatures),
+    [crews, crewPaymentFlags, crewPdfSignatures]
+  );
+
   function handleAddCrew(payload: CrewEntryPayload) {
     setCrewPaymentFlags((prev) => ({
       ...prev,
@@ -623,13 +685,20 @@ export default function SubcontractorReport() {
     ]);
   }
 
-  function setCrewPaymentFlag(crewId: string, key: keyof CrewPaymentFlags, checked: boolean) {
+  function setCrewPaymentFlag(crewId: string, key: PaymentCheckboxKey, checked: boolean) {
     setCrewPaymentFlags((prev) => {
       const cur = prev[crewId] ?? { submit: false, paid: false };
-      return {
-        ...prev,
-        [crewId]: { ...cur, [key]: checked },
-      };
+      const now = new Date().toISOString();
+      if (key === "submit") {
+        const next: CrewPaymentFlags = { ...cur, submit: checked };
+        if (checked) next.submitAt = now;
+        else delete next.submitAt;
+        return { ...prev, [crewId]: next };
+      }
+      const next: CrewPaymentFlags = { ...cur, paid: checked };
+      if (checked) next.paidAt = now;
+      else delete next.paidAt;
+      return { ...prev, [crewId]: next };
     });
   }
 
@@ -683,6 +752,7 @@ export default function SubcontractorReport() {
     workTotal,
     contractAmount,
     crewPaidRollup,
+    timelineEvents: paymentTimeline,
   };
 
   const crewsBase = {

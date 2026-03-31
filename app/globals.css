@@ -413,6 +413,70 @@ body {
   border-color: rgba(15, 23, 42, 0.08) !important;
 }
 
+/* Sign / Submit / Paid activity timeline (Installation Cost card) */
+.scr-payment-timeline-list {
+  padding-left: 0;
+}
+
+.scr-payment-timeline-item {
+  position: relative;
+  display: flex;
+  gap: 0.65rem;
+  padding-bottom: 0.65rem;
+  padding-left: 0.1rem;
+}
+
+.scr-payment-timeline-item:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 0.33rem;
+  top: 0.85rem;
+  bottom: 0;
+  width: 2px;
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 1px;
+}
+
+.scr-payment-timeline-dot {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-top: 0.28rem;
+  border-radius: 50%;
+  background: var(--scr-slate-400);
+}
+
+.scr-payment-timeline-dot--sign-comp,
+.scr-payment-timeline-dot--sign-waiver {
+  background: var(--scr-emerald);
+  box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.2);
+}
+
+.scr-payment-timeline-dot--submit {
+  background: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+.scr-payment-timeline-dot--paid {
+  background: #7c3aed;
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
+}
+
+.scr-payment-timeline-title--sign-comp,
+.scr-payment-timeline-title--sign-waiver {
+  color: var(--scr-emerald);
+}
+
+.scr-payment-timeline-title--submit {
+  color: #2563eb;
+}
+
+.scr-payment-timeline-title--paid {
+  color: #7c3aed;
+}
+
 .scr-tabular-nums {
   font-variant-numeric: tabular-nums;
 }

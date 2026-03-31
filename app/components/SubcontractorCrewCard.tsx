@@ -1,6 +1,6 @@
 "use client";
 
-import type { CrewEntry, CrewPaymentFlags, CrewWorkItem } from "./crewTypes";
+import type { CrewEntry, CrewPaymentFlags, CrewWorkItem, PaymentCheckboxKey } from "./crewTypes";
 
 type Props = {
   crew: CrewEntry;
@@ -15,7 +15,7 @@ type Props = {
   /** Which PDFs already have Sign online applied (persists on the card) */
   pdfSigned?: { compensation: boolean; waiver: boolean };
   paymentFlags: CrewPaymentFlags;
-  onPaymentFlagChange: (key: keyof CrewPaymentFlags, checked: boolean) => void;
+  onPaymentFlagChange: (key: PaymentCheckboxKey, checked: boolean) => void;
 };
 
 /** Work lines that would appear in the compensation agreement PDF */
